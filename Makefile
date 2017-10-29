@@ -1,6 +1,7 @@
 VPATH=src
 
-CFLAGS+=-O2 $(INC)
+CFLAGS+=-O2
+CFLAGS+=$(INC)
 
 O=$(patsubst %,o/%.o,$(N))
 EXE=$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
