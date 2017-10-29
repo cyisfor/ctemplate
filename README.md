@@ -111,7 +111,8 @@ Note also that `<?cS` assumes a “string” struct is defined with members ‘s
 
 if your template starts with `<?C` you can define output_etc at the top, I guess.
 
-```<?C
+```C
+<?C
 #include <stdio.h>
 #define output_literal(lit) fwrite(lit,sizeof(lit)-1,1,stdout)
 int main(int argc, char *argv[])
