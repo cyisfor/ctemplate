@@ -44,7 +44,7 @@ typedef struct string {
 } string;
 
 static
-void put_quoted(const char* s, size_t l) {
+void put_quoted(context* ctx, const char* s, size_t l) {
 	size_t i;
 	size_t lastnl = 0;
 	for(i=0;i<l;++i) {
@@ -93,6 +93,10 @@ typedef struct context {
 	FILE* out;
 } context;
 
+struct generate_config {
+	bool keep_space;
+};
+
 struct generate_config generate_config = {
 	.keep_space = false
 };
@@ -123,7 +127,7 @@ static
 void commit_curlit(context* ctx) {
 	if(ctx->clpos > 0) {
 		PUTLIT("output_literal(\"");
-		put_quoted(ctx->curlit,ctx->clpos);
+		put_quoted(ctx, ctx->curlit,ctx->clpos);
 		PUTLIT("\");\n");
 		ctx->clpos = 0;
 	}
@@ -349,5 +353,13 @@ void generate(context* ctx, 	FILE* out, FILE* in) {
 		if(process(c)) break;
 	}
 	commit_curlit();
+	return 0;
+}
+
+
+int main(int argc, char *argv[])
+{
+	generate_config.keep_space = NULL != getenv("KEEP_SPACE");
+	
 	return 0;
 }
