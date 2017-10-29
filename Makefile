@@ -8,9 +8,13 @@ EXE=$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 all: example
 	./example
 
-N=generate
-generate: $(O)
+N=generate_main
+generate: $(O) libgenerate.a
 	$(EXE)
+
+N=generate
+libgenerate.a: $(O)
+	ar crs $@ $^
 
 N=example
 example: $(O)
