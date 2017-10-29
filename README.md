@@ -1,3 +1,5 @@
+A super simple, super stupid templating system for C. "Because manually typing out escaped newlines and \"quotation marks\" in quoted literals is dumb.\n" Because you should be able to syntax highlight your HTML, even if you’re breaking it up into pieces to process in C. Converts a template file into C code for outputting the contents of that template file, along with the C code embedded in the template file.
+
 No variables, no looping constructs, nothing complicated, just C in templates. Syntax ripped off from XML processing instructions
 
 `before <?C code ?> after`
@@ -139,6 +141,8 @@ The value of i is <?c "%d", i+19 ?>.
 ?>
 
 In general though, avoid a lot of C syntax in templates. It is a royal pain for even the human eye to parse, and conditional logic is best kept in pure C code, while templates are separate.
+
+TODO:
 
 Optionally... I guess you could create a bunch of defines?
 ```C
