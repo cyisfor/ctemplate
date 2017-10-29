@@ -34,6 +34,12 @@ void error(const char* fmt, ...) {
 	abort();
 }
 
+
+typedef struct string {
+	char* s;
+	size_t l;
+} string;
+
 typedef struct context {
 	enum kinds kind;
 	char namebuf[0x100]; // eh, whatever
@@ -72,11 +78,6 @@ void generate_free(context** pctx) {
 
 #define PUTS(s,len) fwrite(s,len,1,ctx->out)
 #define PUTLIT(lit) PUTS(lit,sizeof(lit)-1)
-
-typedef struct string {
-	char* s;
-	size_t l;
-} string;
 
 static
 void put_quoted(context* ctx, const char* s, size_t l) {
@@ -266,7 +267,7 @@ bool process(context* ctx, char c) {
 		};
 			
 
-		commit_curlit();
+		commit_curlit(ctx);
 			
 		switch(ctx->kind) {
 		case CODE:
@@ -331,7 +332,7 @@ bool process(context* ctx, char c) {
 	return false;
 }
 
-void generate(context* ctx, 	FILE* out, FILE* in) {
+void generate(context* ctx, FILE* out, FILE* in) {
 	ctx->in = in;
 	ctx->out = out;
 
@@ -339,7 +340,7 @@ void generate(context* ctx, 	FILE* out, FILE* in) {
 	if(generate_config.keep_space) {
 		for(;;) {
 			char c = fgetc(ctx->in);
-			if(feof(ctx->in)) return true;
+			if(feof(ctx->in)) return;
 			if(!isspace(c)) {
 				process(ctx, c);
 				break;
@@ -349,10 +350,9 @@ void generate(context* ctx, 	FILE* out, FILE* in) {
 	for(;;) {
 		char c = fgetc(ctx->in);
 		if(feof(ctx->in)) break;
-		if(process(c)) break;
+		if(process(ctx, c)) break;
 	}
-	commit_curlit();
-	return 0;
+	commit_curlit(ctx);
 }
 
 
