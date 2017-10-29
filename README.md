@@ -11,7 +11,7 @@ code;
 output_literal(" after");
 ```
 
-define "output_literal" and stuff in code, then include the generated source.
+You need to define "output_literal" and stuff in code, then include this system’s generated source. See `output.h` `test.template.html` `example.c` and `Makefile` for an example of how to do this sort of thing.
 
 ```C
 #define output_literal(lit) strreserve(buf,sizeof(lit)-1); \
