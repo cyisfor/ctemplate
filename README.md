@@ -146,6 +146,7 @@ So stripping leading whitespace would make sense, but who's going to make self c
 
 Note: to do looping constructs...
 
+```C
 Prefix
 <?C
 { int i;
@@ -155,6 +156,7 @@ The value of i is <?c "%d", i+19 ?>.
 <?C
 } }
 ?>
+```
 
 In general though, avoid a lot of C syntax in templates. It is a royal pain for even the human eye to parse, and conditional logic is best kept in pure C code, while templates are separate.
 
