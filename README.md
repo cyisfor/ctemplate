@@ -3,6 +3,7 @@ A super simple, super stupid templating system for C. "Because manually typing o
 No variables, no looping constructs, nothing complicated, just C in templates. Syntax ripped off from XML processing instructions
 
 `before <?C code ?> after`
+
 =>
 ```C
 output_literal("before ");
@@ -24,6 +25,7 @@ or w/ev
 ?C is case sensitive, because...
 
 `<?c code ?>`
+
 =>
 `output_fmt(code)`
 
@@ -41,6 +43,7 @@ This is stupid, but:
 ```
 Better to do this:
 `<?cl lit ?>`
+
 => `output_literal(lit)`
 
 that could be good for like...
@@ -49,25 +52,29 @@ that could be good for like...
 To embed a `?>` use `\?>`, and string literal boundaries, parentheses, brackets etc are ignored.
 
 `<?cl "This will fail ?>" ?>`
+
 =>
+
 `output_literal("This will fail);
 output_literal("\" ?>");
 `
 
 `<?cl "This will not fail \?>" ?>`
-=>
-`output_literal("This will not fail ?>");`
+
+=> `output_literal("This will not fail ?>");`
 
 `<?cl "This also will not \\\?> fail \?>" ?>`
-=>
-`output_literal("This also will \\?> not fail ?>");`
-=> (outputs)
-`This also will \?> not fail ?>`
+
+=> `output_literal("This also will \\?> not fail ?>");`
+
+=> (outputs) `This also will \?> not fail ?>`
 
 `\<?` will also work to avoid going into code mode.
 
 `This is the enter code delimiter: \<?. <?cl cool_huh ? "cool!" : "not cool." ?>`
+
 =>
+
 ```
 output_literal("This is the enter code delimiter: <?. ");
 output_literal(cool_huh ? "cool!" : "not cool.");
@@ -75,23 +82,29 @@ output_literal(cool_huh ? "cool!" : "not cool.");
 
 
 `<?cs buf, len ?>`
+
 => `output_buf(buf, len);`
 
 `<?csl str ?>`
+
 => `{ const char* s = str; output_buf(s, strlen(s)); }`
 
 `<?cSS S.s = "hi \0there"; S.l = 9; ?>`
+
 => `{ string S; S.s = "hi \0there"; S.l = 9; output_buf(S.s,S.l); }`
 
 `<?cS thing.s = "defined elsewher"; thing ?>`
+
 => `{  string S = ({ thing.s = "defined elsewher"; thing; }); output_buf(S.s,S.l); }`
 
 `<?cS(name) name.s = "hi \0there"; name.l = 9; ?>`
+
 => `{ string name; name.s = "hi \0there"; name.l = 9; output_buf(name.s,name.l); }`
 
 note this parser is very stupid. Basically expects the inside to be syntax that "works". So
 
 `<?cS(thing) "oops" ?>`
+
 => `{ string thing; "oops" output_buf(thing.s, thing.l); }`
 
 Note also that `<?cS` assumes a “string” struct is defined with members ‘s’ and ‘l’ for string and length. Probably should change it to `data` and `iov_base_process_size_requisition` or whatever “real” string structs use as members, like uv_buf_t or struct iovec.
@@ -118,7 +131,9 @@ Usually, whitespace before the first `<?C` will be consumed, and not output_lite
 ?>
 ...
 ```
+
 =>
+
 ```C
 output_literal(" ");
 #define output_literal(lit) puts("oops");
@@ -153,6 +168,7 @@ The middle %d
 The end.
 ```
 generated with the name “DERP” =>
+
 ```C
 #define DERP0 "The beginning\n"
 #define DERP1 "\nThe middle %d\n"
