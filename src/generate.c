@@ -269,6 +269,7 @@ bool process(char c) {
 
 		switch(kind) {
 		case CODE:
+			PUTLIT("\n");
 			break;
 		case ZSTR:
 			PUTLIT("; output_buf(s,strlen(s)); }\n");
@@ -289,7 +290,7 @@ bool process(char c) {
 		};
 		// check for a newline following ?>
 		c = fgetc(stdin);
-		if(c == '\n')
+		if(feof(stdin) || c == '\n')
 			break;
 		else
 			return process(c); // gcc can optimize tail recursion

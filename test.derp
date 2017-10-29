@@ -1,1 +1,3 @@
 <?cS herp?>test<?cl "derp" ?>test
+<?C char[] message = "test"; ?>
+<?csl test?>
