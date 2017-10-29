@@ -84,7 +84,7 @@ output_literal(cool_huh ? "cool!" : "not cool.");
 => `{ string S; S.s = "hi \0there"; S.l = 9; output_buf(S.s,S.l); }`
 
 `<?cS thing.s = "defined elsewher"; thing ?>`
-=> `{  string S = { thing.s = "defined elsewher"; thing }; output_buf(S.s,S.l); }`
+=> `{  string S = ({ thing.s = "defined elsewher"; thing; }); output_buf(S.s,S.l); }`
 
 `<?cS(name) name.s = "hi \0there"; name.l = 9; ?>`
 => `{ string name; name.s = "hi \0there"; name.l = 9; output_buf(name.s,name.l); }`
