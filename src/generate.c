@@ -77,34 +77,45 @@ void put_quoted(const char* s, size_t l) {
 
 #define GETC(fmt, ...) safefgetc(stdin, fmt, ## __VA_ARGS__)
 
-enum kinds kind = EHUNNO;
-char namebuf[0x100]; // eh, whatever
-bool noass; // no assignment
+typedef struct context {
+	enum kinds kind;
+	char namebuf[0x100]; // eh, whatever
+	bool noass; // no assignment
 /* ass: string s = { ... }; output_buf(...);
 	 noass: string s; ... output_buf(...);
 */
-string name = {.s = namebuf, .l = 0}; // for <?cS(name)...?>
-char* curlit = NULL;
-size_t clpos = 0;
-size_t clsize = 0;
-void add(char c) {
-	if(clpos == clsize) {
-		clsize = (clsize*3)>>1;
-		curlit = realloc(curlit,clsize);
-	}
-	curlit[clpos++] = c;
+	string name;
+	char* curlit;
+	size_t clpos;
+	size_t clsize;
+} context;
+
+context* generate_init(void) {
+	context* ctx = calloc(sizeof(struct context),1);
+	ctx->name.s = ctx->namebuf;
 }
-void commit_curlit(void) {
-	if(clpos > 0) {
+static
+void add(context* ctx, char c) {
+	if(ctx->clpos == ctx->clsize) {
+		ctx->clsize = (ctx->clsize*3)>>1;
+		ctx->curlit = realloc(ctx->curlit,ctx->clsize);
+	}
+	ctx->curlit[ctx->clpos++] = c;
+}
+
+static
+void commit_curlit(context* ctx) {
+	if(ctx->clpos > 0) {
 		PUTLIT("output_literal(\"");
-		put_quoted(curlit,clpos);
+		put_quoted(ctx->curlit,ctx->clpos);
 		PUTLIT("\");\n");
-		clpos = 0;
+		ctx->clpos = 0;
 	}
 }
 
 // return true when done
-bool process_code(char c) {
+static
+bool process_code(context* ctx, char c) {
 	switch(c) {
 	case '\\':
 		c = fgetc(stdin);
@@ -136,18 +147,19 @@ bool process_code(char c) {
 	};
 }
 
-bool process(char c) {
+static
+bool process(context* ctx, char c) {
 	switch(c) {
 	case '\\': {
 		c = fgetc(stdin);
 		if(feof(stdin)) return true;
 		switch(c) {
 		case '<':
-			add('<');
+			add(ctx, '<');
 			return false;
 		default:
-			add('\\');
-			add(c);
+			add(ctx, '\\');
+			add(ctx, c);
 			return false;
 		};
 	}
@@ -156,15 +168,15 @@ bool process(char c) {
 		if(feof(stdin)) return true;
 		if(c != '?') {
 			// oops
-			add('<');
-			add(c);
+			add(ctx, '<');
+			add(ctx, c);
 			return false;
 		}
 		c = GETC("expected ? after <");
-		kind = EHUNNO;
+		ctx->kind = EHUNNO;
 		switch(c) {
 		case 'C':
-			kind = CODE;
+			ctx->kind = CODE;
 			break;
 		case 'c':
 			c = GETC("expected l, s, or whitespace after <?c");
@@ -172,10 +184,10 @@ bool process(char c) {
 			case ' ':
 			case '\t':
 			case '\n':
-				kind = FMT;
+				ctx->kind = FMT;
 				break;
 			case 'l':
-				kind = LIT;
+				ctx->kind = LIT;
 				break;
 			case 's':
 				c = GETC("expected l or whitespace after <?cs");
@@ -183,51 +195,51 @@ bool process(char c) {
 				case ' ':
 				case '\t':
 				case '\n':
-					kind = LITWLEN;
+					ctx->kind = LITWLEN;
 					break;
 				case 'l':
-					kind = ZSTR;
+					ctx->kind = ZSTR;
 								
 					if(!isspace(GETC("expected whitespace after <?csl")))
-						error("whitespace should follow kind clause");
+						error("whitespace should follow ctx->kind clause");
 					break;
 				};
 				break;
 			case 'S':
-				kind = STRING;
+				ctx->kind = STRING;
 				c = GETC("expected whitespace or ( after <?cS");
-				noass = true;
+				ctx->noass = true;
 				switch(c) {
 				case ' ':
 				case '\t':
 				case '\n':
 					// default name is S
-					noass = false;
-					name.s[0] = 'S';
-					name.l = 1;
+					ctx->noass = false;
+					ctx->name.s[0] = 'S';
+					ctx->name.l = 1;
 					break;
 				case '(':
-					name.l = 0;
+					ctx->name.l = 0;
 					for(;;) {
 						c = GETC("expected ) after <?C(");
 						if(c == ')') break;
-						name.s[name.l++] = c;
-						assert(name.l < 0x100);
+						ctx->name.s[ctx->name.l++] = c;
+						assert(ctx->name.l < 0x100);
 					}
 					break;
 				default:
 					c = GETC("expected whitespace after <?cS?");
 					assert(isspace(c));
-					name.s[0] = c;
-					name.l = 1;
+					ctx->name.s[0] = c;
+					ctx->name.l = 1;
 					break;
 				};
 				break;
 			default:
 				// oops
-				add('<');
-				add('?');
-				add(c);
+				add(ctx, '<');
+				add(ctx, '?');
+				add(ctx, c);
 				return false;
 			};
 			break;
@@ -237,7 +249,7 @@ bool process(char c) {
 
 		commit_curlit();
 			
-		switch(kind) {
+		switch(ctx->kind) {
 		case CODE:
 			break;
 		case FMT:
@@ -253,8 +265,8 @@ bool process(char c) {
 			PUTLIT("{ const char* s = ");
 		case STRING:
 			PUTLIT("{ string ");
-			if(noass) {
-				PUTS(name.s,name.l);
+			if(ctx->noass) {
+				PUTS(ctx->name.s,ctx->name.l);
 				PUTLIT("; ");
 			} else {
 				PUTLIT("S = ({ ");
@@ -264,10 +276,10 @@ bool process(char c) {
 		for(;;) {
 			// XXX: technically could just assume EOF means ?>
 			char c = GETC("expected ?> before EOF to end code");
-			if(process_code(c)) break;
+			if(process_code(ctx, c)) break;
 		}
 
-		switch(kind) {
+		switch(ctx->kind) {
 		case CODE:
 			PUTLIT("\n");
 			break;
@@ -275,11 +287,11 @@ bool process(char c) {
 			PUTLIT("; output_buf(s,strlen(s)); }\n");
 			break;
 		case STRING:
-			if(noass) {
+			if(ctx->noass) {
 				PUTLIT("; output_buf(");
-				PUTS(name.s,name.l);
+				PUTS(ctx->name.s,ctx->name.l);
 				PUTLIT(".s, ");
-				PUTS(name.s,name.l);
+				PUTS(ctx->name.s,ctx->name.l);
 				PUTLIT(".l); }\n");
 			} else {
 				PUTLIT("; }); output_buf(S.s, S.l); }\n");
@@ -293,16 +305,19 @@ bool process(char c) {
 		if(feof(stdin) || c == '\n')
 			break;
 		else
-			return process(c); // gcc can optimize tail recursion
+			return process(ctx, c); // gcc can optimize tail recursion
 	default:
-		add(c);
+		add(ctx, c);
 	};
 	return false;
 }
+
 int main(int argc, char *argv[])
 {
-	curlit = malloc(16);
-	clsize = 16;
+
+	
+	ctx->curlit = malloc(16);
+	ctx->clsize = 16;
 	
 	// uhh...
 	if(NULL==getenv("KEEP_SPACE")) {
@@ -310,7 +325,7 @@ int main(int argc, char *argv[])
 			char c = fgetc(stdin);
 			if(feof(stdin)) return true;
 			if(!isspace(c)) {
-				process(c);
+				process(ctx, c);
 				break;
 			}
 		}
