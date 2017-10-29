@@ -7,7 +7,6 @@
 
 #define assert(a) if(!(a)) abort();
 
-
 enum kinds { EHUNNO, CODE, FMT, LIT, LITWLEN, ZSTR, STRING };
 
 static
@@ -33,6 +32,42 @@ void error(const char* fmt, ...) {
 	va_end(arg);
 	fputc('\n',stderr);
 	abort();
+}
+
+typedef struct context {
+	enum kinds kind;
+	char namebuf[0x100]; // eh, whatever
+	bool noass; // no assignment
+/* ass: string s = { ... }; output_buf(...);
+	 noass: string s; ... output_buf(...);
+*/
+	string name;
+	char* curlit;
+	size_t clpos;
+	size_t clsize;
+	FILE* in;
+	FILE* out;
+} context;
+
+struct generate_config {
+	bool keep_space;
+};
+
+struct generate_config generate_config = {
+	.keep_space = false
+};
+
+context* generate_init(void) {
+	context* ctx = calloc(sizeof(struct context),1);
+	ctx->name.s = ctx->namebuf;
+	ctx->curlit = malloc(16); // because 0 * 1.5 == 0 oops
+	ctx->clsize = 16;
+}
+
+void generate_free(context** pctx) {
+	context* ctx = *pctx;
+	*pctx = NULL;
+	free(ctx);
 }
 
 #define PUTS(s,len) fwrite(s,len,1,ctx->out)
@@ -77,42 +112,6 @@ void put_quoted(context* ctx, const char* s, size_t l) {
 
 
 #define GETC(fmt, ...) safefgetc(ctx->in, fmt, ## __VA_ARGS__)
-
-typedef struct context {
-	enum kinds kind;
-	char namebuf[0x100]; // eh, whatever
-	bool noass; // no assignment
-/* ass: string s = { ... }; output_buf(...);
-	 noass: string s; ... output_buf(...);
-*/
-	string name;
-	char* curlit;
-	size_t clpos;
-	size_t clsize;
-	FILE* in;
-	FILE* out;
-} context;
-
-struct generate_config {
-	bool keep_space;
-};
-
-struct generate_config generate_config = {
-	.keep_space = false
-};
-
-context* generate_init(void) {
-	context* ctx = calloc(sizeof(struct context),1);
-	ctx->name.s = ctx->namebuf;
-	ctx->curlit = malloc(16); // because 0 * 1.5 == 0 oops
-	ctx->clsize = 16;
-}
-
-void generate_free(context** pctx) {
-	context* ctx = *pctx;
-	*pctx = NULL;
-	free(ctx);
-}
 
 static
 void add(context* ctx, char c) {
