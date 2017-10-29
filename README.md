@@ -64,7 +64,7 @@ output_literal("\" ?>");
 => (outputs)
 `This also will \?> not fail ?>`
 
-\<? will also work to avoid going into code mode.
+`\<?` will also work to avoid going into code mode.
 
 `This is the enter code delimiter: \<?. <?cl cool_huh ? "cool!" : "not cool." ?>`
 =>
