@@ -1,4 +1,5 @@
 #include <stdio.h>
+
 #include <stdarg.h>
 #include <stdlib.h> // malloc, NULL
 #include <stdbool.h>
@@ -34,7 +35,7 @@ void error(const char* fmt, ...) {
 	abort();
 }
 
-#define PUTS(s,len) fwrite(s,len,1,stdout)
+#define PUTS(s,len) fwrite(s,len,1,ctx->out)
 #define PUTLIT(lit) PUTS(lit,sizeof(lit)-1)
 
 typedef struct string {
@@ -49,12 +50,12 @@ void put_quoted(const char* s, size_t l) {
 	for(i=0;i<l;++i) {
 		switch(s[i]) {
 		case '\"':
-			fputc('\\',stdout);
-			fputc('"',stdout);
+			fputc('\\',ctx->out);
+			fputc('"',ctx->out);
 			break;
 		case '\\':
-			fputc('\\',stdout);
-			fputc('\\',stdout);
+			fputc('\\',ctx->out);
+			fputc('\\',ctx->out);
 			break;
 		case '\n':
 			// this logically divides the string up into "..." things, which
@@ -68,14 +69,14 @@ void put_quoted(const char* s, size_t l) {
 			lastnl = i;
 			break;
 		default:
-			fputc(s[i],stdout);
+			fputc(s[i],ctx->out);
 			break;
 		};
 	}
 }
 
 
-#define GETC(fmt, ...) safefgetc(stdin, fmt, ## __VA_ARGS__)
+#define GETC(fmt, ...) safefgetc(ctx->in, fmt, ## __VA_ARGS__)
 
 typedef struct context {
 	enum kinds kind;
@@ -88,12 +89,27 @@ typedef struct context {
 	char* curlit;
 	size_t clpos;
 	size_t clsize;
+	FILE* in;
+	FILE* out;
 } context;
+
+struct generate_config generate_config = {
+	.keep_space = false
+};
 
 context* generate_init(void) {
 	context* ctx = calloc(sizeof(struct context),1);
 	ctx->name.s = ctx->namebuf;
+	ctx->curlit = malloc(16); // because 0 * 1.5 == 0 oops
+	ctx->clsize = 16;
 }
+
+void generate_free(context** pctx) {
+	context* ctx = *pctx;
+	*pctx = NULL;
+	free(ctx);
+}
+
 static
 void add(context* ctx, char c) {
 	if(ctx->clpos == ctx->clsize) {
@@ -118,31 +134,31 @@ static
 bool process_code(context* ctx, char c) {
 	switch(c) {
 	case '\\':
-		c = fgetc(stdin);
-		if(feof(stdin)) return true;
+		c = fgetc(ctx->in);
+		if(feof(ctx->in)) return true;
 		switch(c) {
 		case '?':
 			// escaped ?
-			fputc('?',stdout);
+			fputc('?',ctx->out);
 			return false;
 		default: // this also gets \\
-			fputc('\\',stdout);
-			fputc(c,stdout);
+			fputc('\\',ctx->out);
+			fputc(c,ctx->out);
 			return false;
 		};
 	case '?':
-		c = fgetc(stdin);
-		if(feof(stdin)) return true;
+		c = fgetc(ctx->in);
+		if(feof(ctx->in)) return true;
 		if(c == '>') {
 			return true;
 		} else {
 			// oops
-			fputc('?',stdout);
-			fputc(c, stdout);
+			fputc('?',ctx->out);
+			fputc(c, ctx->out);
 			return false;
 		}
 	default:
-		fputc(c, stdout);
+		fputc(c, ctx->out);
 		return false;
 	};
 }
@@ -151,8 +167,8 @@ static
 bool process(context* ctx, char c) {
 	switch(c) {
 	case '\\': {
-		c = fgetc(stdin);
-		if(feof(stdin)) return true;
+		c = fgetc(ctx->in);
+		if(feof(ctx->in)) return true;
 		switch(c) {
 		case '<':
 			add(ctx, '<');
@@ -164,8 +180,8 @@ bool process(context* ctx, char c) {
 		};
 	}
 	case '<':
-		c = fgetc(stdin);
-		if(feof(stdin)) return true;
+		c = fgetc(ctx->in);
+		if(feof(ctx->in)) return true;
 		if(c != '?') {
 			// oops
 			add(ctx, '<');
@@ -301,8 +317,8 @@ bool process(context* ctx, char c) {
 			PUTLIT(");\n");
 		};
 		// check for a newline following ?>
-		c = fgetc(stdin);
-		if(feof(stdin) || c == '\n')
+		c = fgetc(ctx->in);
+		if(feof(ctx->in) || c == '\n')
 			break;
 		else
 			return process(ctx, c); // gcc can optimize tail recursion
@@ -312,18 +328,15 @@ bool process(context* ctx, char c) {
 	return false;
 }
 
-int main(int argc, char *argv[])
-{
+void generate(context* ctx, 	FILE* out, FILE* in) {
+	ctx->in = in;
+	ctx->out = out;
 
-	
-	ctx->curlit = malloc(16);
-	ctx->clsize = 16;
-	
 	// uhh...
-	if(NULL==getenv("KEEP_SPACE")) {
+	if(generate_config.keep_space) {
 		for(;;) {
-			char c = fgetc(stdin);
-			if(feof(stdin)) return true;
+			char c = fgetc(ctx->in);
+			if(feof(ctx->in)) return true;
 			if(!isspace(c)) {
 				process(ctx, c);
 				break;
@@ -331,8 +344,8 @@ int main(int argc, char *argv[])
 		}
 	}
 	for(;;) {
-		char c = fgetc(stdin);
-		if(feof(stdin)) break;
+		char c = fgetc(ctx->in);
+		if(feof(ctx->in)) break;
 		if(process(c)) break;
 	}
 	commit_curlit();
