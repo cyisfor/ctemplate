@@ -40,7 +40,7 @@ typedef struct string {
 	size_t l;
 } string;
 
-typedef struct context {
+typedef struct generate_context {
 	enum kinds kind;
 	char namebuf[0x100]; // eh, whatever
 	bool noass; // no assignment
@@ -53,7 +53,9 @@ typedef struct context {
 	size_t clsize;
 	FILE* in;
 	FILE* out;
-} context;
+} generate_context;
+
+typedef generate_context context; // derp
 
 struct generate_config {
 	bool keep_space;
@@ -64,10 +66,11 @@ struct generate_config generate_config = {
 };
 
 context* generate_init(void) {
-	context* ctx = calloc(sizeof(struct context),1);
+	context* ctx = calloc(sizeof(struct generate_context),1);
 	ctx->name.s = ctx->namebuf;
 	ctx->curlit = malloc(16); // because 0 * 1.5 == 0 oops
 	ctx->clsize = 16;
+	return ctx;
 }
 
 void generate_free(context** pctx) {
@@ -359,6 +362,8 @@ void generate(context* ctx, FILE* out, FILE* in) {
 int main(int argc, char *argv[])
 {
 	generate_config.keep_space = NULL != getenv("KEEP_SPACE");
-	
+	generate_context* ctx = generate_init();
+	generate(ctx, stdout, stdin);
+	generate_free(&ctx);
 	return 0;
 }

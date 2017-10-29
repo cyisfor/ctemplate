@@ -1,6 +1,6 @@
 VPATH=src
 
-CFLAGS+=-O2
+CFLAGS+=-O2 -ggdb
 
 O=$(patsubst %,o/%.o,$(N))
 EXE=$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
