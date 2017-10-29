@@ -22,6 +22,8 @@ or
 
 or w/ev
 
+Like the <?php?> thing, if ?> is directly followed by a newline, that newline’s snarfed. Use two newlines if you want a newline after a ?> in the output
+
 ?C is case sensitive, because...
 
 `<?c code ?>`

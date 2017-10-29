@@ -1,11 +1,12 @@
 VPATH=src
 
-CFLAGS+=-O2 -ggdb
+CFLAGS+=-O2 $(INC)
 
 O=$(patsubst %,o/%.o,$(N))
 EXE=$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 all: example
+	./example
 
 N=generate
 generate: $(O)
@@ -17,7 +18,9 @@ example: $(O)
 
 o/example.o: o/test.template.html.c
 
-o/example.o: CFLAGS+=-I.
+o/example.o: INC+=-I.
+# since generate depends on example.o, the extra CFLAGS end up there.
+generate: INC:=
 
 o/%.c: % generate
 	./generate <$< >$@.temp
@@ -28,3 +31,5 @@ o/%.o: %.c | o
 
 o:
 	mkdir $@
+
+.PHONY: all
