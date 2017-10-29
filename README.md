@@ -46,7 +46,7 @@ Better to do this:
 that could be good for like...
 `<?cl sometest() ? "yea" : "nay" ?>`
 
-To embed a ?> use \?>, and string literal boundaries, parentheses, brackets etc are ignored.
+To embed a `?>` use `\?>`, and string literal boundaries, parentheses, brackets etc are ignored.
 
 `<?cl "This will fail ?>" ?>`
 =>
