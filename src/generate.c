@@ -172,6 +172,16 @@ bool process_code(context* ctx, char c) {
 
 static
 bool process(context* ctx, char c) {
+	bool noass = true;
+	
+	for(;;) {
+		// XXX: move loop into process, so we don't have to store noass etc in ctx
+		char c = fgetc(ctx->in);
+		if(feof(ctx->in)) break;
+		if(process(ctx, c)) break;
+	}
+
+	
 	switch(c) {
 	case '\\': {
 		c = fgetc(ctx->in);
@@ -241,6 +251,8 @@ bool process(context* ctx, char c) {
 					ctx->name.s[0] = 'S';
 					ctx->name.l = 1;
 					break;
+				case '1':
+					ctx->
 				case '(':
 					ctx->name.l = 0;
 					for(;;) {
@@ -349,11 +361,10 @@ void generate(context* ctx, FILE* out, FILE* in) {
 				break;
 			}
 		}
-	}
-	for(;;) {
+	} else {
 		char c = fgetc(ctx->in);
-		if(feof(ctx->in)) break;
-		if(process(ctx, c)) break;
+		if(feof(ctx->in)) return;
+		process(ctx, c);
 	}
 	commit_curlit(ctx);
 }
