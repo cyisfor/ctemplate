@@ -1,6 +1,7 @@
 VPATH=src
 
-CFLAGS+=-O2
+#CFLAGS+=-O2
+CFLAGS+=-ggdb
 CFLAGS+=$(INC)
 
 O=$(patsubst %,o/%.o,$(N))

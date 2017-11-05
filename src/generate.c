@@ -248,11 +248,9 @@ bool process(context* ctx, char c) {
 				case '\n':
 					// default name is S
 					ctx->noass = false;
-					ctx->name.s[0] = 'S';
-					ctx->name.l = 1;
+					ctx->name.s[0] = '\0';
+					ctx->name.l = 0;
 					break;
-				case '1':
-					ctx->
 				case '(':
 					ctx->name.l = 0;
 					for(;;) {
