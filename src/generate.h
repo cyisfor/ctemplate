@@ -7,8 +7,4 @@ struct generate_config {
 
 extern struct generate_config generate_config;
 
-typedef struct generate_context* generate_context;
-
-generate_context generate_init(void);
-void generate_free(generate_context* pctx);
-void generate(generate_context ctx, FILE* out, FILE* in);
+void generate(FILE* out, FILE* in);

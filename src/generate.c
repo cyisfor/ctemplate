@@ -40,13 +40,6 @@ typedef struct string {
 	size_t l;
 } string;
 
-typedef struct generate_context {
-	FILE* in;
-	FILE* out;
-} generate_context;
-
-typedef generate_context context; // derp
-
 struct generate_config {
 	bool keep_space;
 };
@@ -62,15 +55,6 @@ struct generate_config generate_config = {
 
 static
 void generate(FILE* out, FILE* in) {
-	bool noass = true;
-	char namebuf[0x100];
-	string name = {
-		.s = namebuf,
-		.l = 0
-	};
-
-	enum kinds kind;
-
 	char* curlit = malloc(16); // because 0 * 1.5 == 0 oops
 	size_t clpos = 0;
 	size_t clsize = 16;
@@ -141,6 +125,11 @@ void generate(FILE* out, FILE* in) {
 	/* state machine */
 
 	bool noass;
+	char namebuf[0x100];
+	string name = {
+		.s = namebuf,
+		.l = 0
+	};
 	
 	void process_code(enum kinds kind) {
 		commit_curlit();
@@ -179,11 +168,11 @@ void generate(FILE* out, FILE* in) {
 				switch(c) {
 				case '?':
 					// escaped ?
-					fputc('?',);
+					fputc('?', out);
 					continue;
 				default: // this also gets \\
-					fputc('\\',);
-					fputc(c,);
+					fputc('\\', out);
+					fputc(c, out);
 					continue;
 				};
 			case '?':
@@ -192,12 +181,12 @@ void generate(FILE* out, FILE* in) {
 					goto FINISH_CODE;
 				} else {
 					// oops
-					fputc('?',);
-					fputc(c, );
+					fputc('?', out);
+					fputc(c, out);
 					continue;
 				}
 			default:
-				fputc(c, );
+				fputc(c, out);
 				continue;
 			};
 		}
