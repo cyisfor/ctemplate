@@ -163,7 +163,7 @@ void generate(FILE* out, FILE* in) {
 					continue;
 				default: // this also gets \\
 					fputc('\\', out);
-					fputc(c.last, out);
+					fputc(c.cur, out);
 					ADVANCE();
 					continue;
 				};
@@ -175,12 +175,12 @@ void generate(FILE* out, FILE* in) {
 				} else {
 					// oops
 					fputc('?', out);
-					fputc(c, out);
+					fputc(c.cur, out);
 					ADVANCE();					
 					continue;
 				}
 			default:
-				fputc(c, out);
+				fputc(c.cur, out);
 				ADVANCE();
 				continue;
 			};
@@ -233,7 +233,7 @@ FINISH_CODE:
 				return process_code(LITWLEN);
 			case 'l':
 				EXPECT("whitespace after <?csl");
-				if(!isspace(c))
+				if(!isspace(c.cur))
 					error("whitespace should follow <?csl");
 				return process_code(ZSTR);
 			default:
@@ -242,7 +242,7 @@ FINISH_CODE:
 				add('?');
 				add('c');
 				add('s');
-				add(c);
+				add(c.cur);
 				return;
 			};
 			break;
@@ -274,10 +274,10 @@ FINISH_CODE:
 				}
 				return process_code(STRING);
 			default: 
-				name.s[0] = c;
+				name.s[0] = c.cur;
 				name.l = 1;
+				assert(isspace(c.next));
 				EXPECT("expected whitespace after <?cS?");
-				assert(isspace(c));
 				return process_code(STRING);
 			};
 			break;
@@ -285,7 +285,7 @@ FINISH_CODE:
 			// oops
 			add('<');
 			add('?');
-			add(c);
+			add(c.cur);
 		};
 	}
 
@@ -295,46 +295,39 @@ FINISH_CODE:
 			if(feof(in)) break;
 			switch(ADVANCE()) {
 			case '\\': {
-				ADVANCE();
 				if(feof(in)) {
 					// warn(trailing backslash)
 					add('\\');
-					commit_curlit();
-					return;
+					return commit_curlit();
 				}
-				switch(c) {
+				switch(ADVANCE()) {
 				case '<':
 					add('<');
-					ADVANCE();
 					return;
 				case '\\':
 					add('\\');
-					ADVANCE();
 					return;					
 				default:
 					add('\\');
-					add(c);
-					ADVANCE();
+					add(c.cur);
 					return;
 				};
 			}
 			case '<':
-				ADVANCE();
 				if(feof(in)) {
 					add('<');
 					commit_curlit();
 					return;
 				}
-				if(c != '?') {
+				if(c.next != '?') {
 					// oops
 					add('<');
-					add(c);
+					add(c.cur);
 					ADVANCE();
 					continue;
 				}
-				EXPECT("expected stuff after <?");
 				// process_directive
-				switch(c) {
+				switch(EXPECT("expected stuff after <?")) {
 				case 'C':
 					process_code(CODE);
 					break;
@@ -345,13 +338,11 @@ FINISH_CODE:
 					//oops
 					add('<');
 					add('?');
-					add(c);
-					ADVANCE();
+					add(c.cur);
 					continue;
 				};
 			default:
-				add(c);
-				ADVANCE();
+				add(c.cur);
 			};
 		}
 		return commit_curlit();
@@ -360,7 +351,7 @@ FINISH_CODE:
 	ADVANCE();
 
 	if(!generate_config.keep_space) {
-		while(isspace(c)) ADVANCE();
+		while(isspace(c.cur)) ADVANCE();
 	}
 
 	return process_literal();
