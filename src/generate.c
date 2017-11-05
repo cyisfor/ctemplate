@@ -92,7 +92,7 @@ void generate(FILE* out, FILE* in) {
 		}
 	}
 
-	struct {
+	struct parser {
 		char cur;
 		char next;
 	} c;
@@ -164,24 +164,20 @@ void generate(FILE* out, FILE* in) {
 				default: // this also gets \\
 					fputc('\\', out);
 					fputc(c.cur, out);
-					ADVANCE();
 					continue;
 				};
 			case '?':
-				EXPECT("must end code in ?>");
-				if(c == '>') {
-					ADVANCE();
+				if(c.next == '>') {
 					goto FINISH_CODE;
 				} else {
 					// oops
 					fputc('?', out);
-					fputc(c.cur, out);
-					ADVANCE();					
+					fputc(c.next, out);
+					EXPECT("must end code in ?>");
 					continue;
 				}
 			default:
 				fputc(c.cur, out);
-				ADVANCE();
 				continue;
 			};
 		}
@@ -211,14 +207,13 @@ FINISH_CODE:
 		// check for a newline following ?>
 		ADVANCE();
 		if(feof(in)) {
-		} else if(c == '\n') {
+		} else if(c.cur == '\n') {
 			ADVANCE();
 		}
 	}
 	
 	void process_string() {
-		EXPECT("expected l, s, or whitespace after <?c");
-		switch(ADVANCE()) {
+		switch(EXPECT("expected l, s, or whitespace after <?c")) {
 		case ' ':
 		case '\t':
 		case '\n':
@@ -261,15 +256,14 @@ FINISH_CODE:
 			case '1':
 				// XXX: this is mostly useless...
 				noass = true;
-				EXPECT("expected whitespace after <?cS1");
-				assert(isspace(c));
+				assert(isspace(EXPECT("expected whitespace after <?cS1")));
 				return process_code(STRING);
 			case '(':
 				name.l = 0;
 				for(;;) {
 					EXPECT("expected ) after <?cS(");
-					if(c == ')') break;
-					name.s[name.l++] = c;
+					if(c.cur == ')') break;
+					name.s[name.l++] = c.cur;
 					assert(name.l < 0x100);
 				}
 				return process_code(STRING);
@@ -319,11 +313,10 @@ FINISH_CODE:
 					commit_curlit();
 					return;
 				}
-				if(c.next != '?') {
+				if(ADVANCE() != '?') {
 					// oops
 					add('<');
 					add(c.cur);
-					ADVANCE();
 					continue;
 				}
 				// process_directive
