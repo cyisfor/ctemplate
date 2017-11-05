@@ -10,21 +10,6 @@
 enum kinds { EHUNNO, CODE, FMT, LIT, LITWLEN, ZSTR, STRING };
 
 static
-char safefgetc(FILE* fp, const char* fmt, ...) {
-	char ret = fgetc(fp);
-	if(feof(fp)) {
-		fputs("EOF on getc\n",stderr);
-		va_list arg;
-		va_start(arg, fmt);
-		vfprintf(stderr, fmt, arg);
-		va_end(arg);
-		fputc('\n',stderr);
-		abort();
-	}
-	return ret;
-}
-
-static
 void error(const char* fmt, ...) {
 	va_list arg;
 	va_start(arg, fmt);
@@ -51,9 +36,7 @@ struct generate_config generate_config = {
 // in/out to be defined
 #define PUTS(s,len) fwrite(s,len,1,out)
 #define PUTLIT(lit) PUTS(lit,sizeof(lit)-1)
-#define GETC(fmt, ...) safefgetc(in, fmt, ## __VA_ARGS__)
 
-static
 void generate(FILE* out, FILE* in) {
 	char* curlit = malloc(16); // because 0 * 1.5 == 0 oops
 	size_t clpos = 0;
@@ -109,17 +92,26 @@ void generate(FILE* out, FILE* in) {
 		}
 	}
 
-	char c;
+	struct {
+		char cur;
+		char next;
+	} c;
 
-	void ADVANCE(void) {
-		c = fgetc(in);
+	/* note: ALWAYS advance after you've dealt with the current value of c */
+	// return the old value, so we can switch on it, but assume advanced
+	char ADVANCE(void) {
+		// lookahead eh
+		c.cur = c.next;
+		c.next = fgetc(in);
+		return c.cur;
 	}
 
-	void EXPECT(const char* msg) {
+	char EXPECT(const char* msg) {
 		ADVANCE();
 		if(feof(in)) {
 			error(msg);
 		}
+		return c.cur;
 	}
 
 	/* state machine */
@@ -161,32 +153,35 @@ void generate(FILE* out, FILE* in) {
 		// output the actual code
 		for(;;) {
 			// XXX: technically could just assume EOF means ?>
-			char c = GETC("expected ?> before EOF to end code");
-			switch(c) {
+			switch(EXPECT("expected ?> before EOF to end code")) {
 			case '\\':
-				c = GETC("expected character after backslash");
-				switch(c) {
+				switch(EXPECT("expected character after backslash")) {
 				case '?':
 					// escaped ?
 					fputc('?', out);
+					ADVANCE();
 					continue;
 				default: // this also gets \\
 					fputc('\\', out);
-					fputc(c, out);
+					fputc(c.last, out);
+					ADVANCE();
 					continue;
 				};
 			case '?':
-				c = GET("must end code in ?>");
+				EXPECT("must end code in ?>");
 				if(c == '>') {
+					ADVANCE();
 					goto FINISH_CODE;
 				} else {
 					// oops
 					fputc('?', out);
 					fputc(c, out);
+					ADVANCE();					
 					continue;
 				}
 			default:
 				fputc(c, out);
+				ADVANCE();
 				continue;
 			};
 		}
@@ -223,7 +218,7 @@ FINISH_CODE:
 	
 	void process_string() {
 		EXPECT("expected l, s, or whitespace after <?c");
-		switch(c) {
+		switch(ADVANCE()) {
 		case ' ':
 		case '\t':
 		case '\n':
@@ -231,8 +226,7 @@ FINISH_CODE:
 		case 'l':
 			return process_code(LIT);
 		case 's':
-			EXPECT("expected l or whitespace after <?cs");
-			switch(c) {
+			switch(EXPECT("expected l or whitespace after <?cs")) {
 			case ' ':
 			case '\t':
 			case '\n':
@@ -253,10 +247,8 @@ FINISH_CODE:
 			};
 			break;
 		case 'S':
-			EXPECT("expected character, whitespace, 1 or ( after <?cS");
-			
 			noass = true;
-			switch(c) {
+			switch(EXPECT("expected character, whitespace, 1 or ( after <?cS")) {
 			case ' ':
 			case '\t':
 			case '\n':
@@ -301,7 +293,7 @@ FINISH_CODE:
 		// assumes we already ADVANCE at least once
 		for(;;) {
 			if(feof(in)) break;
-			switch(c) {
+			switch(ADVANCE()) {
 			case '\\': {
 				ADVANCE();
 				if(feof(in)) {
@@ -313,11 +305,17 @@ FINISH_CODE:
 				switch(c) {
 				case '<':
 					add('<');
-					return false;
+					ADVANCE();
+					return;
+				case '\\':
+					add('\\');
+					ADVANCE();
+					return;					
 				default:
 					add('\\');
 					add(c);
-					return false;
+					ADVANCE();
+					return;
 				};
 			}
 			case '<':
