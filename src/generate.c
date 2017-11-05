@@ -141,9 +141,8 @@ void generate(FILE* out, FILE* in) {
 		case ZSTR:
 			PUTLIT("{ const char* s = ");
 		case STRING:
-			PUTLIT("{ ");
 			if(!noass) {
-				PUTLIT("string ");
+				PUTLIT("{ string ");
 				PUTS(name.s,name.l);
 				PUTLIT("; ");
 			} 
@@ -175,7 +174,7 @@ void generate(FILE* out, FILE* in) {
 					goto FINISH_CODE;
 				} else {
 					// oops
-					add('?',);
+					add('?');
 					add(EXPECT("must end code in ?>"));
 					continue;
 				}
@@ -189,8 +188,8 @@ void generate(FILE* out, FILE* in) {
 			fwrite(curlit,clpos,1,out);
 		}
 		void commit_code(void) {
+			put_code();
 			clpos = 0;
-			return put_code();
 		}
 		
 FINISH_CODE:
@@ -215,6 +214,7 @@ FINISH_CODE:
 			}
 			break;
 		default:
+			commit_code();
 			PUTLIT(");\n");
 		};
 		// check for a newline following ?>
