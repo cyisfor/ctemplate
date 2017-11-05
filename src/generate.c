@@ -41,16 +41,6 @@ typedef struct string {
 } string;
 
 typedef struct generate_context {
-	enum kinds kind;
-	char namebuf[0x100]; // eh, whatever
-	bool noass; // no assignment
-/* ass: string s = { ... }; output_buf(...);
-	 noass: string s; ... output_buf(...);
-*/
-	string name;
-	char* curlit;
-	size_t clpos;
-	size_t clsize;
 	FILE* in;
 	FILE* out;
 } generate_context;
@@ -65,224 +55,97 @@ struct generate_config generate_config = {
 	.keep_space = false
 };
 
-context* generate_init(void) {
-	context* ctx = calloc(sizeof(struct generate_context),1);
-	ctx->name.s = ctx->namebuf;
-	ctx->curlit = malloc(16); // because 0 * 1.5 == 0 oops
-	ctx->clsize = 16;
-	return ctx;
-}
-
-void generate_free(context** pctx) {
-	context* ctx = *pctx;
-	*pctx = NULL;
-	free(ctx);
-}
-
-#define PUTS(s,len) fwrite(s,len,1,ctx->out)
+// in/out to be defined
+#define PUTS(s,len) fwrite(s,len,1,out)
 #define PUTLIT(lit) PUTS(lit,sizeof(lit)-1)
+#define GETC(fmt, ...) safefgetc(in, fmt, ## __VA_ARGS__)
 
 static
-void put_quoted(context* ctx, const char* s, size_t l) {
-	size_t i;
-	size_t lastnl = 0;
-	for(i=0;i<l;++i) {
-		switch(s[i]) {
-		case '\"':
-			fputc('\\',ctx->out);
-			fputc('"',ctx->out);
-			break;
-		case '\\':
-			fputc('\\',ctx->out);
-			fputc('\\',ctx->out);
-			break;
-		case '\n':
-			// this logically divides the string up into "..." things, which
-			// the compiler will concatenate
-			if(i == l - 1 || (i - lastnl) < 4) {
-				// ...except at the end, or if there was a newline recently
-				PUTLIT("\\n");
-			} else {
-				PUTLIT("\\n\"\n\t\"");
-			}
-			lastnl = i;
-			break;
-		default:
-			fputc(s[i],ctx->out);
-			break;
-		};
-	}
-}
-
-
-#define GETC(fmt, ...) safefgetc(ctx->in, fmt, ## __VA_ARGS__)
-
-static
-void add(context* ctx, char c) {
-	if(ctx->clpos == ctx->clsize) {
-		ctx->clsize = (ctx->clsize*3)>>1;
-		ctx->curlit = realloc(ctx->curlit,ctx->clsize);
-	}
-	ctx->curlit[ctx->clpos++] = c;
-}
-
-static
-void commit_curlit(context* ctx) {
-	if(ctx->clpos > 0) {
-		PUTLIT("output_literal(\"");
-		put_quoted(ctx, ctx->curlit,ctx->clpos);
-		PUTLIT("\");\n");
-		ctx->clpos = 0;
-	}
-}
-
-// return true when done
-static
-bool process_code(context* ctx, char c) {
-	switch(c) {
-	case '\\':
-		c = fgetc(ctx->in);
-		if(feof(ctx->in)) return true;
-		switch(c) {
-		case '?':
-			// escaped ?
-			fputc('?',ctx->out);
-			return false;
-		default: // this also gets \\
-			fputc('\\',ctx->out);
-			fputc(c,ctx->out);
-			return false;
-		};
-	case '?':
-		c = fgetc(ctx->in);
-		if(feof(ctx->in)) return true;
-		if(c == '>') {
-			return true;
-		} else {
-			// oops
-			fputc('?',ctx->out);
-			fputc(c, ctx->out);
-			return false;
-		}
-	default:
-		fputc(c, ctx->out);
-		return false;
-	};
-}
-
-static
-bool process(context* ctx, char c) {
+void generate(FILE* out, FILE* in) {
 	bool noass = true;
-	
-	for(;;) {
-		// XXX: move loop into process, so we don't have to store noass etc in ctx
-		char c = fgetc(ctx->in);
-		if(feof(ctx->in)) break;
-		if(process(ctx, c)) break;
-	}
+	char namebuf[0x100];
+	string name = {
+		.s = namebuf,
+		.l = 0
+	};
 
-	
-	switch(c) {
-	case '\\': {
-		c = fgetc(ctx->in);
-		if(feof(ctx->in)) return true;
-		switch(c) {
-		case '<':
-			add(ctx, '<');
-			return false;
-		default:
-			add(ctx, '\\');
-			add(ctx, c);
-			return false;
-		};
-	}
-	case '<':
-		c = fgetc(ctx->in);
-		if(feof(ctx->in)) return true;
-		if(c != '?') {
-			// oops
-			add(ctx, '<');
-			add(ctx, c);
-			return false;
-		}
-		c = GETC("expected ? after <");
-		ctx->kind = EHUNNO;
-		switch(c) {
-		case 'C':
-			ctx->kind = CODE;
-			break;
-		case 'c':
-			c = GETC("expected l, s, or whitespace after <?c");
-			switch(c) {
-			case ' ':
-			case '\t':
+	enum kinds kind;
+
+	char* curlit = malloc(16); // because 0 * 1.5 == 0 oops
+	size_t clpos = 0;
+	size_t clsize = 16;
+
+	/* utility functions */
+
+	void put_quoted(const char* s, size_t l) {
+		size_t i;
+		size_t lastnl = 0;
+		for(i=0;i<l;++i) {
+			switch(s[i]) {
+			case '\"':
+				fputc('\\',out);
+				fputc('"',out);
+				break;
+			case '\\':
+				fputc('\\',out);
+				fputc('\\',out);
+				break;
 			case '\n':
-				ctx->kind = FMT;
-				break;
-			case 'l':
-				ctx->kind = LIT;
-				break;
-			case 's':
-				c = GETC("expected l or whitespace after <?cs");
-				switch(c) {
-				case ' ':
-				case '\t':
-				case '\n':
-					ctx->kind = LITWLEN;
-					break;
-				case 'l':
-					ctx->kind = ZSTR;
-								
-					if(!isspace(GETC("expected whitespace after <?csl")))
-						error("whitespace should follow ctx->kind clause");
-					break;
-				};
-				break;
-			case 'S':
-				ctx->kind = STRING;
-				c = GETC("expected whitespace or ( after <?cS");
-				ctx->noass = true;
-				switch(c) {
-				case ' ':
-				case '\t':
-				case '\n':
-					// default name is S
-					ctx->noass = false;
-					ctx->name.s[0] = '\0';
-					ctx->name.l = 0;
-					break;
-				case '(':
-					ctx->name.l = 0;
-					for(;;) {
-						c = GETC("expected ) after <?C(");
-						if(c == ')') break;
-						ctx->name.s[ctx->name.l++] = c;
-						assert(ctx->name.l < 0x100);
-					}
-					break;
-				default:
-					c = GETC("expected whitespace after <?cS?");
-					assert(isspace(c));
-					ctx->name.s[0] = c;
-					ctx->name.l = 1;
-					break;
-				};
+				// this logically divides the string up into "..." things, which
+				// the compiler will concatenate
+				if(i == l - 1 || (i - lastnl) < 4) {
+					// ...except at the end, or if there was a newline recently
+					PUTLIT("\\n");
+				} else {
+					PUTLIT("\\n\"\n\t\"");
+				}
+				lastnl = i;
 				break;
 			default:
-				// oops
-				add(ctx, '<');
-				add(ctx, '?');
-				add(ctx, c);
-				return false;
+				fputc(s[i],out);
+				break;
 			};
-			break;
-			
-		};
-			
+		}
+	}
+	
+	void add(char c) {
+		if(clpos == clsize) {
+			clsize = (clsize*3)>>1;
+			curlit = realloc(curlit,clsize);
+		}
+		curlit[clpos++] = c;
+	}
 
-		commit_curlit(ctx);
+	void commit_curlit() {
+		if(clpos > 0) {
+			PUTLIT("output_literal(\"");
+			put_quoted(curlit,clpos);
+			PUTLIT("\");\n");
+			clpos = 0;
+		}
+	}
+
+	char c;
+
+	void ADVANCE(void) {
+		c = fgetc(in);
+	}
+
+	void EXPECT(const char* msg) {
+		ADVANCE();
+		if(feof(in)) {
+			error(msg);
+		}
+	}
+
+	/* state machine */
+
+	bool noass;
+	
+	void process_code(enum kinds kind) {
+		commit_curlit();
 			
-		switch(ctx->kind) {
+		switch(kind) {
 		case CODE:
 			break;
 		case FMT:
@@ -298,21 +161,49 @@ bool process(context* ctx, char c) {
 			PUTLIT("{ const char* s = ");
 		case STRING:
 			PUTLIT("{ string ");
-			if(ctx->noass) {
-				PUTS(ctx->name.s,ctx->name.l);
+			if(noass) {
+				PUTS(name.s,name.l);
 				PUTLIT("; ");
 			} else {
 				PUTLIT("S = ({ ");
 			};
 		};
 
+		// output the actual code
 		for(;;) {
 			// XXX: technically could just assume EOF means ?>
 			char c = GETC("expected ?> before EOF to end code");
-			if(process_code(ctx, c)) break;
+			switch(c) {
+			case '\\':
+				c = GETC("expected character after backslash");
+				switch(c) {
+				case '?':
+					// escaped ?
+					fputc('?',);
+					continue;
+				default: // this also gets \\
+					fputc('\\',);
+					fputc(c,);
+					continue;
+				};
+			case '?':
+				c = GET("must end code in ?>");
+				if(c == '>') {
+					goto FINISH_CODE;
+				} else {
+					// oops
+					fputc('?',);
+					fputc(c, );
+					continue;
+				}
+			default:
+				fputc(c, );
+				continue;
+			};
 		}
-
-		switch(ctx->kind) {
+		
+FINISH_CODE:
+		switch(kind) {
 		case CODE:
 			PUTLIT("\n");
 			break;
@@ -320,11 +211,11 @@ bool process(context* ctx, char c) {
 			PUTLIT("; output_buf(s,strlen(s)); }\n");
 			break;
 		case STRING:
-			if(ctx->noass) {
+			if(noass) {
 				PUTLIT("; output_buf(");
-				PUTS(ctx->name.s,ctx->name.l);
+				PUTS(name.s,name.l);
 				PUTLIT(".s, ");
-				PUTS(ctx->name.s,ctx->name.l);
+				PUTS(name.s,name.l);
 				PUTLIT(".l); }\n");
 			} else {
 				PUTLIT("; }); output_buf(S.s, S.l); }\n");
@@ -334,35 +225,156 @@ bool process(context* ctx, char c) {
 			PUTLIT(");\n");
 		};
 		// check for a newline following ?>
-		c = fgetc(ctx->in);
-		if(feof(ctx->in) || c == '\n')
-			break;
-		else
-			return process(ctx, c); // gcc can optimize tail recursion
-	default:
-		add(ctx, c);
-	};
-	return false;
-}
-
-void generate(context* ctx, FILE* out, FILE* in) {
-	ctx->in = in;
-	ctx->out = out;
-
-	// uhh...
-	if(generate_config.keep_space) {
-		for(;;) {
-			char c = fgetc(ctx->in);
-			if(feof(ctx->in)) return;
-			if(!isspace(c)) {
-				process(ctx, c);
-				break;
-			}
+		ADVANCE();
+		if(feof(in)) {
+		} else if(c == '\n') {
+			ADVANCE();
 		}
-	} else {
-		char c = fgetc(ctx->in);
-		if(feof(ctx->in)) return;
-		process(ctx, c);
 	}
-	commit_curlit(ctx);
+	
+	void process_string() {
+		EXPECT("expected l, s, or whitespace after <?c");
+		switch(c) {
+		case ' ':
+		case '\t':
+		case '\n':
+			return process_code(FMT);
+		case 'l':
+			return process_code(LIT);
+		case 's':
+			EXPECT("expected l or whitespace after <?cs");
+			switch(c) {
+			case ' ':
+			case '\t':
+			case '\n':
+				return process_code(LITWLEN);
+			case 'l':
+				EXPECT("whitespace after <?csl");
+				if(!isspace(c))
+					error("whitespace should follow <?csl");
+				return process_code(ZSTR);
+			default:
+				// oops
+				add('<');
+				add('?');
+				add('c');
+				add('s');
+				add(c);
+				return;
+			};
+			break;
+		case 'S':
+			EXPECT("expected character, whitespace, 1 or ( after <?cS");
+			
+			noass = true;
+			switch(c) {
+			case ' ':
+			case '\t':
+			case '\n':
+				// default name is S
+				noass = false;
+				name.s[0] = 'S';
+				name.l = 1;
+				// process_thingy(STRING, noass)
+				return process_code(STRING);
+			case '1':
+				// XXX: this is mostly useless...
+				noass = true;
+				EXPECT("expected whitespace after <?cS1");
+				assert(isspace(c));
+				return process_code(STRING);
+			case '(':
+				name.l = 0;
+				for(;;) {
+					EXPECT("expected ) after <?cS(");
+					if(c == ')') break;
+					name.s[name.l++] = c;
+					assert(name.l < 0x100);
+				}
+				return process_code(STRING);
+			default: 
+				name.s[0] = c;
+				name.l = 1;
+				EXPECT("expected whitespace after <?cS?");
+				assert(isspace(c));
+				return process_code(STRING);
+			};
+			break;
+		default:
+			// oops
+			add('<');
+			add('?');
+			add(c);
+		};
+	}
+
+	void process_literal(void) {
+		// assumes we already ADVANCE at least once
+		for(;;) {
+			if(feof(in)) break;
+			switch(c) {
+			case '\\': {
+				ADVANCE();
+				if(feof(in)) {
+					// warn(trailing backslash)
+					add('\\');
+					commit_curlit();
+					return;
+				}
+				switch(c) {
+				case '<':
+					add('<');
+					return false;
+				default:
+					add('\\');
+					add(c);
+					return false;
+				};
+			}
+			case '<':
+				ADVANCE();
+				if(feof(in)) {
+					add('<');
+					commit_curlit();
+					return;
+				}
+				if(c != '?') {
+					// oops
+					add('<');
+					add(c);
+					ADVANCE();
+					continue;
+				}
+				EXPECT("expected stuff after <?");
+				// process_directive
+				switch(c) {
+				case 'C':
+					process_code(CODE);
+					break;
+				case 'c':
+					process_string();
+					break;
+				default:
+					//oops
+					add('<');
+					add('?');
+					add(c);
+					ADVANCE();
+					continue;
+				};
+			default:
+				add(c);
+				ADVANCE();
+			};
+		}
+		return commit_curlit();
+	}
+
+	ADVANCE();
+
+	if(!generate_config.keep_space) {
+		while(isspace(c)) ADVANCE();
+	}
+
+	return process_literal();
 }
