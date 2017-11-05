@@ -141,14 +141,17 @@ void generate(FILE* out, FILE* in) {
 		case ZSTR:
 			PUTLIT("{ const char* s = ");
 		case STRING:
-			PUTLIT("{ string ");
-			if(noass) {
+			PUTLIT("{ ");
+			if(!noass) {
+				PUTLIT("string ");
 				PUTS(name.s,name.l);
 				PUTLIT("; ");
-			} else {
-				PUTLIT("S = ({ ");
-			};
+			} 
 		};
+
+		// since curlit isn't currently being used, let's temporarily store the code in it
+		// so we can duplicate it as in <?cS ... ?>
+		// don't commit_curlit though! that'll add a spurious output_literal(...) wrapper
 
 		// output the actual code
 		for(;;) {
@@ -158,45 +161,55 @@ void generate(FILE* out, FILE* in) {
 				switch(EXPECT("expected character after backslash")) {
 				case '?':
 					// escaped ?
-					fputc('?', out);
+					add('?');
 					ADVANCE();
 					continue;
 				default: // this also gets \\
-					fputc('\\', out);
-					fputc(c.cur, out);
+					add('\\');
+					add(c.cur);
 					continue;
 				};
 			case '?':
 				if(c.next == '>') {
+					ADVANCE();
 					goto FINISH_CODE;
 				} else {
 					// oops
-					fputc('?', out);
-					fputc(c.next, out);
-					EXPECT("must end code in ?>");
+					add('?',);
+					add(EXPECT("must end code in ?>"));
 					continue;
 				}
 			default:
-				fputc(c.cur, out);
+				add(c.cur);
 				continue;
 			};
+		}
+
+		void put_code(void) {
+			fwrite(curlit,clpos,1,out);
+		}
+		void commit_code(void) {
+			clpos = 0;
+			return put_code();
 		}
 		
 FINISH_CODE:
 		switch(kind) {
 		case CODE:
+			commit_code();
 			PUTLIT("\n");
 			break;
 		case ZSTR:
+			commit_code();
 			PUTLIT("; output_buf(s,strlen(s)); }\n");
 			break;
 		case STRING:
 			if(noass) {
-				PUTLIT("; output_buf(");
-				PUTS(name.s,name.l);
-				PUTLIT(".s, ");
-				PUTS(name.s,name.l);
-				PUTLIT(".l); }\n");
+				PUTLIT("output_buf((");
+				put_code();
+				PUTLIT(").s, (");
+				commit_code();
+				PUTLIT(").l);\n");
 			} else {
 				PUTLIT("; }); output_buf(S.s, S.l); }\n");
 			}
@@ -247,16 +260,8 @@ FINISH_CODE:
 			case ' ':
 			case '\t':
 			case '\n':
-				// default name is S
-				noass = false;
-				name.s[0] = 'S';
-				name.l = 1;
-				// process_thingy(STRING, noass)
-				return process_code(STRING);
-			case '1':
-				// XXX: this is mostly useless...
+				// just duplicate the phrase for ().s and ().l
 				noass = true;
-				assert(isspace(EXPECT("expected whitespace after <?cS1")));
 				return process_code(STRING);
 			case '(':
 				name.l = 0;
