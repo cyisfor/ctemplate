@@ -8,8 +8,8 @@ AS_HELP_STRING([--disable-debug],
 esac],
 [debug=true])
 
-AC_DEFUN(ADD_GCC_OPTIMIZATION, [
-AC_MSG_CHECKIN(optimization)
+AC_DEFUN([ADD_GCC_OPTIMIZATION], [
+AC_MSG_CHECKING(optimization)
 AS_CASE([$CFLAGS],
 	[*-g*], [AC_MSG_RESULT(user specified debugging detected.)],
 	[*-O*], [AC_MSG_RESULT(user specified optimization detected.)],

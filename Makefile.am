@@ -1,41 +1,23 @@
-AM_ACLOCAL = -Im4
+ACLOCAL_AMFLAGS = -Im4
+
+AM_CFLAGS = -I$(srcdir)/src
 
 #CFLAGS+=-O2
-AM_CFLAGS=-ggdb
-CFLAGS+=$(INC)
 
-O=$(patsubst %,o/%.o,$(N))
-EXE=$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+bin_PROGRAMS = generate example
+lib_LTLIBRARIES = libgenerate.la
 
-all: example
-	./example
+BUILT_SOURCES=o/test.template.html.c
 
-N=generate_main
-generate: $(O) libgenerate.a
-	$(EXE)
-
-N=generate
-libgenerate.a: $(O)
-	ar crs $@ $^
-
-N=example
-example: $(O)
-	$(EXE)
-
-o/example.o: o/test.template.html.c
-
-o/example.o: INC+=-I.
-# since generate depends on example.o, the extra CFLAGS end up there.
-generate: INC:=
-
-o/%.c: % generate
+o/%.c: $(srcdir)/template/% ./generate | o
 	./generate <$< >$@.temp
 	mv $@.temp $@
 
-o/%.o: %.c | o
-	$(CC) $(CFLAGS) -c -o $@ $<
+example_SOURCES = src/example.c o/test.template.html.c
+
+generate_SOURCES = src/generate_main.c
+
+libgenerate_la_SOURCES = src/generate.c
 
 o:
 	mkdir $@
-
-.PHONY: all
