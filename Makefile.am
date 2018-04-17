@@ -1,7 +1,7 @@
-VPATH=src
+AM_ACLOCAL = -Im4
 
 #CFLAGS+=-O2
-CFLAGS+=-ggdb
+AM_CFLAGS=-ggdb
 CFLAGS+=$(INC)
 
 O=$(patsubst %,o/%.o,$(N))
