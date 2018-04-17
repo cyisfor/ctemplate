@@ -1,10 +1,10 @@
 all: build/Makefile
 	$(MAKE) -C build && $(MAKE) -C build install
 
-build/Makefile: Makefile.in configure | build
+build/Makefile: configure | build
 	cd build && ../configure --prefix=$(PWD) --bindir=$(PWD)
 
-configure: configure.ac config.h.in
+configure: configure.ac Makefile.in config.h.in
 	autoconf
 
 config.h.in:
