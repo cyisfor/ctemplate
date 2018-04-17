@@ -1,12 +1,8 @@
 all: build/Makefile
 	$(MAKE) -C build && $(MAKE) -C build install
 
-.DEFAULT:
-	$(MAKE) build/Makefile
-	$(MAKE) -C build $< && $(MAKE) -C build install $<
-
 build/Makefile: configure | build
-	cd build && ../configure --prefix=$(PWD) --bindir=$(PWD)
+	cd build && ../configure --prefix=$(realpath .) --bindir=$(realpath .)
 
 configure: configure.ac Makefile.in 
 	autoconf
