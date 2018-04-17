@@ -120,7 +120,7 @@ note this parser is very stupid. Basically expects the inside to be syntax that 
 
 => `{ string thing; "oops" output_buf(thing.s, thing.l); }`
 
-Note also that `<?cS` assumes a “string” struct is defined with members ‘s’ and ‘l’ for string and length. Probably should change it to `data` and `iov_base_process_size_requisition` or whatever “real” string structs use as members, like uv_buf_t or struct iovec.
+`<?cS` assumes a “string” struct is defined with members ‘s’ and ‘l’ for string and length. Probably should change it to `data` and `iov_base_process_size_requisition` or whatever “real” string structs use as members, like uv_buf_t or struct iovec.
 
 if your template starts with `<?C` you can define output_etc at the top, I guess.
 
@@ -137,7 +137,7 @@ This will just output the text here, as a self contained program.
 }
 ```
 
-Usually, whitespace before the first `<?C` will be consumed, and not output_literal'd but there might be an option to disable that I guess. If it's disabled, then whitespace before will be like...
+Usually, whitespace before the first `<?C` will be consumed, and not output_literal'd but there might be an option to disable that I guess. If it's not consumed, then you could get strange errors like...
 
 ```C
  <?C
@@ -172,6 +172,26 @@ The value of i is <?c "%d", i+19 ?>.
 ```
 
 In general though, avoid a lot of C syntax in templates. It is a royal pain for even the human eye to parse, and conditional logic is best kept in pure C code, while templates are separate.
+
+Like this is what I usually do:
+
+```C
+void output_row(int i) {
+#include “row.template.html.c”
+}
+
+void output_all(void) {	
+	void output_rows(void) {
+		int i;
+		for(i=0; i<23; ++i) {
+		  output_row(i);
+		}
+	}
+#include “page.template.html.c”
+}
+```
+
+and `<?C output_rows() ?>` will be somewhere in page.template.html
 
 TODO:
 
