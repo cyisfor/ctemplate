@@ -14,7 +14,9 @@ AS_CASE([$CFLAGS],
 	[*-g*], [AC_MSG_RESULT(user specified debugging detected.)],
 	[*-O*], [AC_MSG_RESULT(user specified optimization detected.)],
 	AS_IF([$debug],
-		[CFLAGS="${CFLAGS} -ggdb"],
-		[CFLAGS="${CFLAGS} -O2"]))
+		[AC_MSG_RESULT(enabling debugging)
+		CFLAGS="${CFLAGS} -ggdb"],
+		[AC_MSG_RESULT(enabling optimization)
+		CFLAGS="${CFLAGS} -O2"]))
 		])
 	

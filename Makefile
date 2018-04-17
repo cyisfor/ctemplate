@@ -1,8 +1,8 @@
 all: build/Makefile
-	$(MAKE) -C build
+	$(MAKE) -C build && $(MAKE) -C build install
 
 build/Makefile: Makefile.in configure | build
-	cd build && ../configure
+	cd build && ../configure --prefix=$(realpath ..)
 
 configure: configure.ac
 	autoconf

@@ -1,8 +1,6 @@
 ACLOCAL_AMFLAGS = -Im4
 
-AM_CFLAGS = -I$(srcdir)/src
-
-#CFLAGS+=-O2
+AM_CFLAGS = -I$(srcdir)/src -fdiagnostics-color
 
 bin_PROGRAMS = generate example
 lib_LTLIBRARIES = libgenerate.la
