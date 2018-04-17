@@ -2,13 +2,19 @@ all: build/Makefile
 	$(MAKE) -C build && $(MAKE) -C build install
 
 build/Makefile: Makefile.in configure | build
-	cd build && ../configure --prefix=$(realpath ..)
+	cd build && ../configure --prefix=$(PWD) --bindir=$(PWD)
 
-configure: configure.ac
+configure: configure.ac config.h.in
 	autoconf
 
-Makefile.in: Makefile.am m4/libtool.m4
-	automake
+config.h.in:
+	autoheader
+
+Makefile.in: Makefile.am aclocal.m4
+	automake --add-missing
+
+aclocal.m4: m4/libtool.m4
+	aclocal -I m4
 
 m4/libtool.m4:
 	libtoolize --automake
