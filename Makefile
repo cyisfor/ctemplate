@@ -6,6 +6,7 @@ build/Makefile: configure | build
 
 configure: configure.ac Makefile.in 
 	autoconf
+	touch $@
 
 config.h.in:
 	autoheader
