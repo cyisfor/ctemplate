@@ -83,19 +83,21 @@ void generate(FILE* out, FILE* in) {
 		curlit[clpos++] = c;
 	}
 
-	void commit_curlit() {
+	void commit_curlit(bool done) {
 		if(clpos > 0) {
 			PUTLIT("output_literal(\"");
 			put_quoted(curlit,clpos);
 			PUTLIT("\");\n");
 			clpos = 0;
+			if(done)
+				free(curlit);
 		}
 	}
 
 	struct parser {
 		char cur;
 		char next;
-	} c;
+	} c = {};
 
 	/* note: ALWAYS advance after you've dealt with the current value of c */
 	// return the old value, so we can switch on it, but assume advanced
@@ -124,7 +126,7 @@ void generate(FILE* out, FILE* in) {
 	};
 	
 	void process_code(enum kinds kind) {
-		commit_curlit();
+		commit_curlit(false);
 			
 		switch(kind) {
 		case CODE:
@@ -297,7 +299,7 @@ FINISH_CODE:
 				if(feof(in)) {
 					// warn(trailing backslash)
 					add('\\');
-					return commit_curlit();
+					return commit_curlit(true);
 				}
 				switch(ADVANCE()) {
 				case '<':
@@ -315,7 +317,7 @@ FINISH_CODE:
 			case '<':
 				if(feof(in)) {
 					add('<');
-					commit_curlit();
+					commit_curlit(true);
 					return;
 				}
 				if(ADVANCE() != '?') {
@@ -343,13 +345,13 @@ FINISH_CODE:
 				add(c.cur);
 			};
 		}
-		return commit_curlit();
+		return commit_curlit(true);
 	}
 
 	ADVANCE();
 
 	if(!generate_config.keep_space) {
-		while(isspace(c.cur)) ADVANCE();
+		while(isspace(c.next)) ADVANCE();
 	}
 
 	return process_literal();
