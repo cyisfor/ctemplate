@@ -1,27 +1,29 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(ctemplate "")
-add_executable("${gen}"
-	"${ctemplate}/src/generate.c"
-	"${ctemplate}/src/generate_main.c")
+add_executable(generate
+	src/generate.c
+	src/generate_main.c)
 
 function (add_ctemplate name)
-	set(output "${ctemplate_prefix}/${name}.c")
+	set(output "${name}.c")
 	set(temp "${output}.temp")
 	add_custom_command(
 		OUTPUT "${output}"
 		MAIN_DEPENDENCY "${name}"
-		DEPENDS "${gen}"
-		COMMAND "./${gen}" <"${name}" >"${temp}"
+		DEPENDS generate
+		COMMAND ./generate <"${name}" >"${temp}"
 		COMMAND mv "${temp}" "${output}")
 	add_custom_target(
 		"${name}"
 		DEPENDS "${output}")
+	include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 endfunction(add_ctemplate)
 
 #find_package(CTemplate MODULE REQUIRED)
 #include("${CMAKE_CURRENT_SOURCE_DIR}/FindCTemplate.cmake")
-add_ctemplate(test.template.html)
-add_executable(example src/example.c)
-add_dependencies(example test.template.html)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+	add_ctemplate(test.template.html)
+	add_executable(example src/example.c)
+	add_dependencies(example test.template.html)
+endif()
 
