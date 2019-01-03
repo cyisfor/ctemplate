@@ -1,3 +1,7 @@
+ifneq ("$(file <Makefile)","")
+include Makefile
+else
+
 all: build/Makefile
 	$(MAKE) -C build && $(MAKE) -C build install
 
@@ -24,3 +28,6 @@ build:
 	mkdir $@
 
 .PHONY: all
+
+
+endif
