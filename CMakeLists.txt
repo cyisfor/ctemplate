@@ -1,5 +1,6 @@
 set(ctemplate "")
 include(ctemplate.cmake)
-add_ctemplate(
-add_executable(generate src/generate_main.c)
-add_library(generate src/generate.c)
+add_ctemplate(test.template.html)
+add_executable(example src/example.c)
+add_dependency(example test.template.html)
+

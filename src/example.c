@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 
 	out = stdout;
 	
-#include "o/test.template.html.c"
+#include "test.template.html.c"
 	
 	return 0;
 }
