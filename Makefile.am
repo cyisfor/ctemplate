@@ -2,21 +2,22 @@ ACLOCAL_AMFLAGS = -Im4
 
 AM_CFLAGS = -I$(srcdir)/src -fdiagnostics-color -Io
 
-bin_PROGRAMS = generate example
-lib_LTLIBRARIES = libgenerate.la
+bin_PROGRAMS = ctemplate
+noinst_PROGRAMS = example
+lib_LTLIBRARIES = libctemplate.la
 
 BUILT_SOURCES=o/test.template.html.c
 
-o/%.c: $(srcdir)/% ./generate | o
-	./generate <$< >$@.temp
+o/%.c: $(srcdir)/% ./ctemplate | o
+	./ctemplate <$< >$@.temp
 	mv $@.temp $@
 
 example_SOURCES = src/example.c
 
-generate_SOURCES = src/generate_main.c
-generate_LDADD = libgenerate.la
+ctemplate_SOURCES = src/generate_main.c
+ctemplate_LDADD = libctemplate.la
 
-libgenerate_la_SOURCES = src/generate.c
+libctemplate_la_SOURCES = src/generate.c
 
 o:
 	mkdir $@
