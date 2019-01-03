@@ -3,8 +3,8 @@ else()
 	set(ctemplate "ctemplate")
 endif()
 if(ctemplate_prefix)
-	# ./ or whatever
-	set(ctemplate_prefix "")
+	# generated/ or whatever
+	include_directories("${CMAKE_CURRENT_BINARY_DIR}/${ctemplate_prefix}")
 endif()
 
 
