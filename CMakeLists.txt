@@ -1,17 +1,22 @@
 cmake_minimum_required(VERSION 3.13)
 
-add_executable(generate
+add_executable(ctemplate
 	src/generate.c
 	src/generate_main.c)
 
 function (add_ctemplate name)
-	set(output "${name}.c")
+	if(ARGC EQUAL 2)
+		set(source "${ARG1}")
+	else()
+		set(source "${name}")
+	endif()
+	set(output "${source}.c")
 	set(temp "${output}.temp")
 	add_custom_command(
 		OUTPUT "${output}"
-		MAIN_DEPENDENCY "${name}"
-		DEPENDS generate
-		COMMAND ./generate <"${name}" >"${temp}"
+		MAIN_DEPENDENCY "${source}"
+		DEPENDS ctemplate
+		COMMAND ./ctemplate <"${source}" >"${temp}"
 		COMMAND mv "${temp}" "${output}")
 	add_custom_target(
 		"${name}"
