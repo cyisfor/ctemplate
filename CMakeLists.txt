@@ -19,6 +19,15 @@ function (add_ctemplate name)
 		set(dest "${source}.c")
 	endif()
 
+	if(NOT EXISTS "${source}")
+		if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
+			set(source "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
+			set(dest "${CMAKE_CURRENT_BINARY_DIR}/${dest}")
+		else()
+			error("Can't find ${source} to build with")
+		endif()
+	endif()
+	
 	set(temp "${dest}.temp")
 	add_custom_command(
 		OUTPUT "${dest}"
@@ -37,6 +46,8 @@ endfunction(add_ctemplate)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	add_ctemplate(test.template.html)
 	add_executable(example src/example.c)
+	target_include_directories(example PUBLIC cstuff/src)
+
 	add_dependencies(example test.template.html)
 endif()
 
