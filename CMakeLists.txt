@@ -27,6 +27,9 @@ function (add_ctemplate name)
 			error("Can't find ${source} to build with")
 		endif()
 	endif()
+
+	get_filename_component(destdir "${dest}" DIRECTORY)
+	file(MAKE_DIRECTORY "${destdir}")
 	
 	set(temp "${dest}.temp")
 	add_custom_command(
