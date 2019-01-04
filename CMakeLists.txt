@@ -36,7 +36,8 @@ function (add_ctemplate name)
 		DEPENDS ctemplate
 		DEPENDS "${destdir}"
 		COMMAND ctemplate <"${source}" >"${temp}"
-		COMMAND mv "${temp}" "${dest}")
+		COMMAND mv "${temp}" "${dest}"
+		VERBATIM)
 	add_custom_target(
 		"${name}"
 		DEPENDS "${dest}")
@@ -47,9 +48,9 @@ endfunction(add_ctemplate)
 #include("${CMAKE_CURRENT_SOURCE_DIR}/FindCTemplate.cmake")
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	add_ctemplate(test.template.html)
-	add_executable(example src/example.c)
+	add_executable(example src/example.c test.template.html)
 	target_include_directories(example PUBLIC cstuff/src)
 
-	add_dependencies(example test.template.html)
+#	add_dependencies(example test.template.html)
 endif()
 
