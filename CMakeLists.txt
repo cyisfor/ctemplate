@@ -22,23 +22,19 @@ function (add_ctemplate name)
 		set(dest "${source}.c")
 	endif()
 
-	if(NOT EXISTS "${source}")
-		if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
-			set(source "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
-			set(dest "${CMAKE_CURRENT_BINARY_DIR}/${dest}")
-		else()
-			error("Can't find ${source} to build with")
-		endif()
-	endif()
+	get_filename_component(source "${source}" ABSOLUTE
+		BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+	get_filename_component(dest "${dest}" ABSOLUTE
+		BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
-	get_filename_component(destdir "${dest}" DIRECTORY)
-	file(MAKE_DIRECTORY "${destdir}")
-	
+	generate_dest_directory(destdir "${dest}")
+	message("uhhhh: '${destdir}'" )
 	set(temp "${dest}.temp")
 	add_custom_command(
 		OUTPUT "${dest}"
 		MAIN_DEPENDENCY "${source}"
 		DEPENDS ctemplate
+		DEPENDS "${destdir}"
 		COMMAND ctemplate <"${source}" >"${temp}"
 		COMMAND mv "${temp}" "${dest}")
 	add_custom_target(
