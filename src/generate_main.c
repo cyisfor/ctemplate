@@ -13,17 +13,16 @@ int main(int argc, char *argv[])
 	generate_config.keep_space = NULL != getenv("KEEP_SPACE");
 	if(argc == 3) {
 		FILE* input = fopen(argv[1],"rt");
-		size_t dlen;
 		assert(input);
 		char* dest = argv[2];
-		int destlen = strlen(dest);
-		char tempname[dlen + LITSIZ(".temp")+1];
+		size_t destlen = strlen(dest);
+		char tempname[destlen + LITSIZ(".temp")+1];
 		memcpy(tempname, dest, destlen);
 		memcpy(tempname+destlen,LITLEN(".temp"));
 		tempname[destlen+LITSIZ(".temp")] = 0;
 		FILE* output = fopen(tempname, "wt");
 		assert(output);
-		generate(input, output);
+		generate(output, input);
 		ensure0(fclose(input));
 		ensure0(fflush(output));
 		ensure0(rename(tempname, dest));

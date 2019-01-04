@@ -4,13 +4,15 @@
 #include <stdlib.h> // malloc, NULL
 #include <stdbool.h>
 #include <ctype.h> // isspaceva
+#include <error.h>
+#include <errno.h>
 
 #define assert(a) if(!(a)) abort();
 
 enum kinds { EHUNNO, CODE, FMT, LIT, LITWLEN, ZSTR, STRING };
 
 static
-void error(const char* fmt, ...) {
+void die(const char* fmt, ...) {
 	va_list arg;
 	va_start(arg, fmt);
 	vfprintf(stderr, fmt, arg);
@@ -105,13 +107,18 @@ void generate(FILE* out, FILE* in) {
 		// lookahead eh
 		c.cur = c.next;
 		c.next = fgetc(in);
+		if(c.next == -1) {
+			if(!feof(in)) {
+				error(errno,errno,"fgetc error");
+			}
+		}
 		return c.cur;
 	}
 
 	char EXPECT(const char* msg) {
 		ADVANCE();
 		if(feof(in)) {
-			error(msg);
+			die(msg);
 		}
 		return c.cur;
 	}
@@ -249,7 +256,7 @@ FINISH_CODE:
 			case 'l':
 				EXPECT("whitespace after <?csl");
 				if(!isspace(c.cur))
-					error("whitespace should follow <?csl");
+					die("whitespace should follow <?csl");
 				return process_code(ZSTR);
 			default:
 				// oops
