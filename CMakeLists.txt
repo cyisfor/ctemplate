@@ -35,8 +35,7 @@ function (add_ctemplate name)
 		MAIN_DEPENDENCY "${source}"
 		DEPENDS ctemplate
 		DEPENDS "${destdir}"
-		COMMAND ctemplate <"${source}" >"${temp}"
-		COMMAND mv "${temp}" "${dest}"
+		COMMAND ctemplate "${source}" "${dest}"
 		VERBATIM)
 	add_custom_target(
 		"${name}"
