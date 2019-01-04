@@ -293,7 +293,15 @@ FINISH_CODE:
 	void process_literal(void) {
 		// assumes we already ADVANCE at least once
 		for(;;) {
-			if(feof(in)) break;
+			if(feof(in)) {
+				// strip tail
+				if(clpos) {
+					while(isspace(curlit[clpos-1])) {
+						if(--clpos == 0) break;
+					}
+				}	
+				break;
+			}
 			switch(ADVANCE()) {
 			case '\\': {
 				if(feof(in)) {
@@ -304,14 +312,14 @@ FINISH_CODE:
 				switch(ADVANCE()) {
 				case '<':
 					add('<');
-					return;
+					continue;
 				case '\\':
 					add('\\');
-					return;					
+					continue;					
 				default:
 					add('\\');
 					add(c.cur);
-					return;
+					continue;
 				};
 			}
 			case '<':
