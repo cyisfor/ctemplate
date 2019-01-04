@@ -6,6 +6,9 @@ add_executable(ctemplate
 
 target_include_directories(ctemplate PUBLIC cstuff/src)
 
+# XXX: this should be its own module...
+include(generate_dest_directory.cmake)
+
 function (add_ctemplate name)
 	if(ARGC EQUAL 3)
 		set(source "${ARGV1}")
