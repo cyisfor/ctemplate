@@ -64,7 +64,7 @@ void generate(FILE* out, FILE* in) {
 					// ...except at the end, or if there was a newline recently
 					PUTLIT("\\n");
 				} else {
-					PUTLIT("\\n\"\n\t\"");
+					PUTLIT("\\n\" \\\n\t\"");
 				}
 				lastnl = i;
 				break;
@@ -187,6 +187,11 @@ void generate(FILE* out, FILE* in) {
 		}
 
 		void put_code(void) {
+			assert(clpos > 0);
+			if(curlit[clpos-1] == '\n') {
+				// special case, ignore final \n directly before ?>
+				--clpos;
+			}
 			fwrite(curlit,clpos,1,out);
 		}
 		void commit_code(void) {
