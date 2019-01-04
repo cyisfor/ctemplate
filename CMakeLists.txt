@@ -4,23 +4,31 @@ add_executable(ctemplate
 	src/generate.c
 	src/generate_main.c)
 
+target_include_directories(ctemplate PUBLIC cstuff/src)
+
 function (add_ctemplate name)
-	if(ARGC EQUAL 2)
+	if(ARGC EQUAL 3)
 		set(source "${ARGV1}")
+		set(dest "${ARGV2}")
 	else()
-		set(source "${name}")
+		if(ARGC EQUAL 2)
+			set(source "${ARGV1}")
+		else()
+			set(source "${name}")
+		endif()
+		set(dest "${source}.c")
 	endif()
-	set(output "${source}.c")
-	set(temp "${output}.temp")
+
+	set(temp "${dest}.temp")
 	add_custom_command(
-		OUTPUT "${output}"
+		OUTPUT "${dest}"
 		MAIN_DEPENDENCY "${source}"
 		DEPENDS ctemplate
 		COMMAND ctemplate <"${source}" >"${temp}"
-		COMMAND mv "${temp}" "${output}")
+		COMMAND mv "${temp}" "${dest}")
 	add_custom_target(
 		"${name}"
-		DEPENDS "${output}")
+		DEPENDS "${dest}")
 	include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 endfunction(add_ctemplate)
 
