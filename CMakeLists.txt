@@ -10,16 +10,22 @@ target_include_directories(ctemplate PUBLIC cstuff/src)
 include(generate_dest_directory.cmake)
 
 function (add_ctemplate name)
+	# add_ctemplate(foo.txt) turns (src)/foo.txt into (bin)/foo.txt.c
+	# add_ctemplate(foo.txt bar.txt.c) turns (src)/foo.txt into (bin)/bar.txt.c
+	# add_ctemplate(name source.c dest.c) turns (bin)/source.c into (bin)/dest.c
+	# all three turn their first argument into a target
+	# add_ctemplate(name "${CMAKE_CURRENT_SOURCE_DIR}/source.c" dest.c) works
 	if(ARGC EQUAL 3)
 		set(source "${ARGV1}")
 		set(dest "${ARGV2}")
 	else()
 		if(ARGC EQUAL 2)
-			set(source "${ARGV1}")
+			set(source "${CMAKE_CURRENT_SOURCE_DIR}/${ARGV1}")
+			set(dest "${ARGV1}.c")
 		else()
-			set(source "${name}")
+			set(source "${CMAKE_CURRENT_SOURCE_DIR}/${name}")
+			set(dest "${name}.c")
 		endif()
-		set(dest "${source}.c")
 	endif()
 
 	get_filename_component(source "${source}" ABSOLUTE
