@@ -28,7 +28,6 @@ function (add_ctemplate name)
 		BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 	generate_dest_directory(destdir "${dest}")
-	message("uhhhh: '${destdir}'" )
 	set(temp "${dest}.temp")
 	add_custom_command(
 		OUTPUT "${dest}"
