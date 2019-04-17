@@ -6,9 +6,6 @@ add_executable(ctemplate
 
 target_include_directories(ctemplate PUBLIC cstuff/src)
 
-# XXX: this should be its own module...
-include(generate_dest_directory.cmake)
-
 function (add_ctemplate name)
 	# add_ctemplate(foo.txt) turns (src)/foo.txt into (bin)/foo.txt.c
 	# add_ctemplate(foo.txt bar.txt.c) turns (src)/foo.txt into (bin)/bar.txt.c
@@ -32,20 +29,19 @@ function (add_ctemplate name)
 		BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 	get_filename_component(dest "${dest}" ABSOLUTE
 		BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-
-	generate_dest_directory(destdir "${dest}")
+	get_filename_component(dir "${dest}" DIRECTORY)
+	file(MAKE_DIRECTORY "${dir}")
 	set(temp "${dest}.temp")
 	add_custom_command(
 		OUTPUT "${dest}"
 		MAIN_DEPENDENCY "${source}"
 		DEPENDS ctemplate
-		DEPENDS "${destdir}"
 		COMMAND ctemplate "${source}" "${dest}"
 		VERBATIM)
 	add_custom_target(
 		"${name}"
 		DEPENDS "${dest}")
-	include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+#	include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 endfunction(add_ctemplate)
 
 #find_package(CTemplate MODULE REQUIRED)
