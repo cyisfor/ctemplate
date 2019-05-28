@@ -12,16 +12,6 @@
 
 enum kinds { EHUNNO, CODE, FMT, LIT, LITWLEN, ZSTR, STRING };
 
-static
-void die(const char* fmt, ...) {
-	va_list arg;
-	va_start(arg, fmt);
-	vfprintf(stderr, fmt, arg);
-	va_end(arg);
-	fputc('\n',stderr);
-	abort();
-}
-
 struct generate_config generate_config = {
 	.keep_space = false,
 	.open = (const struct string){ .s = "<?", .l = 2},

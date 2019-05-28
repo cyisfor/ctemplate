@@ -1,5 +1,6 @@
 #include "generate.h"
 #include "mystring.h"
+#include "die.h"
 #include <stdlib.h> // getenv
 #include <libgen.h> // dirname
 #include <error.h>
@@ -11,13 +12,19 @@
 int main(int argc, char *argv[])
 {
 	if(NULL != getenv("open")) {
-		generate_config.open.s = getenv("open");
-		generate_config.close.s = getenv("close");
-		if(generate_config.close.s == NULL) {
+		char* open = getenv("open");
+		char* close = getenv("close");
+		if(close == NULL) {
 			die("You must specify both open= and close=");
 		}
-		generate_config.open.l = strlen(generate_config.open.s);
-		generate_config.close.l = strlen(generate_config.close.s);
+		generate_config.open = (const string){
+			.s = open,
+			.l = strlen(open);
+		};
+		generate_config.close = (const string){
+			.s = close,
+			.l = strlen(close);
+		};
 	} else if(NULL != getenv("close")) {
 		die("You must also specify open= as well as close=");
 	}
