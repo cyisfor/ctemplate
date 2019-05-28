@@ -1,8 +1,7 @@
-#include <stdio.h>
+#include "generate.h"
 
 #include <stdarg.h>
 #include <stdlib.h> // malloc, NULL
-#include <stdbool.h>
 #include <ctype.h> // isspaceva
 #include <error.h>
 #include <errno.h>
@@ -22,18 +21,6 @@ void die(const char* fmt, ...) {
 	fputc('\n',stderr);
 	abort();
 }
-
-
-typedef struct string {
-	char* s;
-	size_t l;
-} string;
-
-struct generate_config {
-	bool keep_space;
-	const string open;
-	const string close;
-};
 
 struct generate_config generate_config = {
 	.keep_space = false,
