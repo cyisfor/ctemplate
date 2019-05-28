@@ -1,4 +1,5 @@
 #include "generate.h"
+#include "die.h"
 
 #include <stdarg.h>
 #include <stdlib.h> // malloc, NULL
@@ -71,7 +72,7 @@ void generate(FILE* out, FILE* in) {
 		curlit[clpos++] = c;
 	}
 
-	void adds(string s) {
+	void adds(cstring s) {
 		if(clpos + s.l > clsize) {
 			clsize = ((clpos + s.l)/1024+1)*1024;
 			curlit = realloc(curlit, clsize);
@@ -122,7 +123,7 @@ void generate(FILE* out, FILE* in) {
 		return c.cur;
 	}
 
-	bool advance_str(string str) {
+	bool advance_str(cstring str) {
 		int i;
 		for(i=1;i<str.l;++i) {
 			char c = ADVANCE();

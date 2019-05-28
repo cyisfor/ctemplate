@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
 add_executable(ctemplate
+	src/die.c
 	src/generate.c
 	src/generate_main.c)
 

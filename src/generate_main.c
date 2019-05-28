@@ -17,13 +17,13 @@ int main(int argc, char *argv[])
 		if(close == NULL) {
 			die("You must specify both open= and close=");
 		}
-		generate_config.open = (const string){
+		generate_config.open = (cstring){
 			.s = open,
-			.l = strlen(open);
+			.l = strlen(open)
 		};
-		generate_config.close = (const string){
+		generate_config.close = (cstring){
 			.s = close,
-			.l = strlen(close);
+			.l = strlen(close)
 		};
 	} else if(NULL != getenv("close")) {
 		die("You must also specify open= as well as close=");
