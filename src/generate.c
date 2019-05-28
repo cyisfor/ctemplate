@@ -15,8 +15,8 @@ enum kinds { EHUNNO, CODE, FMT, LIT, LITWLEN, ZSTR, STRING };
 
 struct generate_config generate_config = {
 	.keep_space = false,
-	.open = (const struct string){ .s = "<?", .l = 2},
-	.close = (const struct string){ .s = "?>", .l = 2},
+	.open = (string){ .s = "<?", .l = 2},
+	.close = (string){ .s = "?>", .l = 2},
 };
 
 #define G_O generate_config.open
@@ -72,7 +72,7 @@ void generate(FILE* out, FILE* in) {
 		curlit[clpos++] = c;
 	}
 
-	void adds(cstring s) {
+	void adds(string s) {
 		if(clpos + s.l > clsize) {
 			clsize = ((clpos + s.l)/1024+1)*1024;
 			curlit = realloc(curlit, clsize);
@@ -123,7 +123,7 @@ void generate(FILE* out, FILE* in) {
 		return c.cur;
 	}
 
-	bool advance_str(cstring str) {
+	bool advance_str(string str) {
 		int i;
 		for(i=1;i<str.l;++i) {
 			char c = ADVANCE();
@@ -143,7 +143,7 @@ void generate(FILE* out, FILE* in) {
 
 	bool noass;
 	char namebuf[0x100];
-	string name = {
+	bstring name = {
 		.s = namebuf,
 		.l = 0
 	};

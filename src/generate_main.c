@@ -17,11 +17,11 @@ int main(int argc, char *argv[])
 		if(close == NULL) {
 			die("You must specify both open= and close=");
 		}
-		generate_config.open = (cstring){
+		generate_config.open = (string){
 			.s = open,
 			.l = strlen(open)
 		};
-		generate_config.close = (cstring){
+		generate_config.close = (string){
 			.s = close,
 			.l = strlen(close)
 		};

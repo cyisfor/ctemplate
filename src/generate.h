@@ -9,8 +9,8 @@
 
 struct generate_config {
 	bool keep_space;
-	cstring open;
-	cstring close;
+	string open;
+	string close;
 };
 
 extern struct generate_config generate_config;
