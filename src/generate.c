@@ -99,7 +99,7 @@ void generate(FILE* out, FILE* in) {
 			clsize = ((clpos + s.l)/1024+1)*1024;
 			curlit = realloc(curlit, clsize);
 		}
-		memcpy(curlit, s.s, s.l);
+		memcpy(curlit + clpos, s.s, s.l);
 		clpos += s.l;
 	}
 
@@ -212,13 +212,13 @@ void generate(FILE* out, FILE* in) {
 				} else {
 					// this also gets \\
 					add('\\');
-					add(c.cur);
+					add(cc);
 				}
 			} else if(cc == G_C.s[0]) {
 				if (advance_str(G_C) == true)
 					break;
 			} else {
-				add(c.cur);
+				add(cc);
 			}
 		}
 
@@ -261,7 +261,6 @@ FINISH_CODE:
 			PUTLIT(");\n");
 		};
 		// check for a newline following ?>
-		ADVANCE();
 		if(feof(in)) {
 		} else if(c.cur == '\n') {
 			ADVANCE();
@@ -355,11 +354,11 @@ FINISH_CODE:
 					add('\\');
 				} else {
 					add('\\');
-					add(c.cur);
+					add(cc);
 				}
 			} else if(cc == G_O.s[0]) {
 				if(feof(in)) {
-					add(G_O.s[0]);
+					add(cc);
 					commit_curlit(true);
 					return;
 				}

@@ -49,7 +49,9 @@ endfunction(add_ctemplate)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	add_ctemplate(test.template.html)
 	add_executable(example src/example.c test.template.html)
-	target_include_directories(example PUBLIC cstuff/src)
+	target_include_directories(example PUBLIC
+		cstuff/src
+		"${CMAKE_CURRENT_BINARY_DIR}")
 
 #	add_dependencies(example test.template.html)
 endif()

@@ -10,6 +10,17 @@
 
 int main(int argc, char *argv[])
 {
+	if(NULL != getenv("open")) {
+		generate_config.open.s = getenv("open");
+		generate_config.close.s = getenv("close");
+		if(generate_config.close.s == NULL) {
+			die("You must specify both open= and close=");
+		}
+		generate_config.open.l = strlen(generate_config.open.s);
+		generate_config.close.l = strlen(generate_config.close.s);
+	} else if(NULL != getenv("close")) {
+		die("You must also specify open= as well as close=");
+	}
 	generate_config.keep_space = NULL != getenv("KEEP_SPACE");
 	if(argc == 3) {
 		FILE* input = fopen(argv[1],"rt");
