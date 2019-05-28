@@ -209,18 +209,16 @@ void generate(FILE* out, FILE* in) {
 					// escaped ?
 					add(G_C.s[0]);
 					ADVANCE();
-					continue;
-				default: // this also gets \\
+				} else {
+					// this also gets \\
 					add('\\');
 					add(c.cur);
-					continue;
-				};
+				}
 			} else if(cc == G_C.s[0]) {
-				if (advance_str(G_C) == false)
-					continue;
+				if (advance_str(G_C) == true)
+					break;
 			} else {
 				add(c.cur);
-				continue;
 			}
 		}
 
@@ -343,29 +341,25 @@ FINISH_CODE:
 				}	
 				break;
 			}
-			switch(ADVANCE()) {
-			case '\\': {
+			char cc = ADVANCE();
+			if(cc == '\\') {
 				if(feof(in)) {
 					// warn(trailing backslash)
 					add('\\');
 					return commit_curlit(true);
 				}
-				switch(ADVANCE()) {
-				case G_O[0]:
-					add(G_O[0]);
-					continue;
-				case '\\':
+				cc = ADVANCE();
+				if(cc == G_O.s[0]) {
+					add(G_O.s[0]);
+				} else if(cc == '\\') {
 					add('\\');
-					continue;					
-				default:
+				} else {
 					add('\\');
 					add(c.cur);
-					continue;
-				};
-			}
-			case G_O[0]:
+				}
+			} else if(cc == G_O.s[0]) {
 				if(feof(in)) {
-					add(G_O[0]);
+					add(G_O.s[0]);
 					commit_curlit(true);
 					return;
 				}
@@ -384,9 +378,9 @@ FINISH_CODE:
 					add(c.cur);
 					continue;
 				};
-			default:
+			} else {
 				add(c.cur);
-			};
+			}
 		}
 		return commit_curlit(true);
 	}
