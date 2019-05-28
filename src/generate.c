@@ -6,6 +6,8 @@
 #include <ctype.h> // isspaceva
 #include <error.h>
 #include <errno.h>
+#include <string.h> // memcpy
+#include <stdint.h> // intptr_t
 
 #define assert(a) if(!(a)) abort();
 
@@ -135,7 +137,7 @@ void generate(FILE* out, FILE* in) {
 		ADVANCE();
 		if(feof(in)) {
 			void* args = __builtin_apply_args();
-			printf("uhh %d\n", (intptr_t)args - (intptr_t)&fmt);
+			printf("uhh %ld\n", (intptr_t)args - (intptr_t)&fmt);
 			__builtin_return(__builtin_apply((void*)die,
 																			 args,
 																			 0x400));
@@ -143,7 +145,7 @@ void generate(FILE* out, FILE* in) {
 		return c.cur;
 	}
 
-	bool advance_str(string s) {
+	bool advance_str(string str) {
 		int i;
 		for(i=1;i<str.l;++i) {
 			char c = ADVANCE();
@@ -200,12 +202,12 @@ void generate(FILE* out, FILE* in) {
 		// output the actual code
 		for(;;) {
 			// XXX: technically could just assume EOF means ?>
-			switch(EXPECT("expected %.* before EOF to end code", G_C.l, G_C.s)) {
-			case '\\':
-				switch(EXPECT("expected character after backslash")) {
-				case '?':
+			char cc = EXPECT("expected %.* before EOF to end code", G_C.l, G_C.s);
+			if(cc == '\\') {
+				cc = EXPECT("expected character after backslash");
+				if(cc == G_C.s[0]) {
 					// escaped ?
-					add('?');
+					add(G_C.s[0]);
 					ADVANCE();
 					continue;
 				default: // this also gets \\
@@ -213,13 +215,13 @@ void generate(FILE* out, FILE* in) {
 					add(c.cur);
 					continue;
 				};
-			case G_C.s[0]:
+			} else if(cc == G_C.s[0]) {
 				if (advance_str(G_C) == false)
 					continue;
-			default:
+			} else {
 				add(c.cur);
 				continue;
-			};
+			}
 		}
 
 		void put_code(void) {
