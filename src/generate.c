@@ -29,11 +29,18 @@ typedef struct string {
 
 struct generate_config {
 	bool keep_space;
+	const string open;
+	const string close;
 };
 
 struct generate_config generate_config = {
-	.keep_space = false
+	.keep_space = false,
+	.open = (const struct string){ .s = "<?", .l = 2},
+	.close = (const struct string){ .s = "?>", .l = 2},
 };
+
+#define G_O generate_config.open
+#define G_C generate_config.close 
 
 // in/out to be defined
 #define PUTS(s,len) fwrite(s,len,1,out)
@@ -85,6 +92,15 @@ void generate(FILE* out, FILE* in) {
 		curlit[clpos++] = c;
 	}
 
+	void adds(string s) {
+		if(clpos + s.l > clsize) {
+			clsize = ((clpos + s.l)/1024+1)*1024;
+			curlit = realloc(curlit, clsize);
+		}
+		memcpy(curlit, s.s, s.l);
+		clpos += s.l;
+	}
+
 	void commit_curlit(bool done) {
 		if(clpos > 0) {
 			PUTLIT("output_literal(\"");
@@ -115,13 +131,33 @@ void generate(FILE* out, FILE* in) {
 		return c.cur;
 	}
 
-	char EXPECT(const char* msg) {
+	char EXPECT(const char* fmt, ...) {
 		ADVANCE();
 		if(feof(in)) {
-			die(msg);
+			void* args = __builtin_apply_args();
+			printf("uhh %d\n", (intptr_t)args - (intptr_t)&fmt);
+			__builtin_return(__builtin_apply((void*)die,
+																			 args,
+																			 0x400));
 		}
 		return c.cur;
 	}
+
+	bool advance_str(string s) {
+		int i;
+		for(i=1;i<str.l;++i) {
+			char c = ADVANCE();
+			if(c != str.s[i]) {
+				// oops, not an opening thingy
+				const string pfx = {.s = str.s, .l = i};
+				adds(pfx);
+				add(c);
+				return false;
+			}
+		}
+		return true;
+	}
+
 
 	/* state machine */
 
@@ -164,7 +200,7 @@ void generate(FILE* out, FILE* in) {
 		// output the actual code
 		for(;;) {
 			// XXX: technically could just assume EOF means ?>
-			switch(EXPECT("expected ?> before EOF to end code")) {
+			switch(EXPECT("expected %.* before EOF to end code", G_C.l, G_C.s)) {
 			case '\\':
 				switch(EXPECT("expected character after backslash")) {
 				case '?':
@@ -177,16 +213,9 @@ void generate(FILE* out, FILE* in) {
 					add(c.cur);
 					continue;
 				};
-			case '?':
-				if(c.next == '>') {
-					ADVANCE();
-					goto FINISH_CODE;
-				} else {
-					// oops
-					add('?');
-					add(EXPECT("must end code in ?>"));
+			case G_C.s[0]:
+				if (advance_str(G_C) == false)
 					continue;
-				}
 			default:
 				add(c.cur);
 				continue;
@@ -240,7 +269,7 @@ FINISH_CODE:
 	}
 	
 	void process_string() {
-		switch(EXPECT("expected l, s, or whitespace after <?c")) {
+		switch(EXPECT("expected l, s, or whitespace after %.*sc", G_O.l, G_O.s)) {
 		case ' ':
 		case '\t':
 		case '\n':
@@ -248,20 +277,19 @@ FINISH_CODE:
 		case 'l':
 			return process_code(LIT);
 		case 's':
-			switch(EXPECT("expected l or whitespace after <?cs")) {
+			switch(EXPECT("expected l or whitespace after %.*scs", G_O.l, G_O.s)) {
 			case ' ':
 			case '\t':
 			case '\n':
 				return process_code(LITWLEN);
 			case 'l':
-				EXPECT("whitespace after <?csl");
+				EXPECT("whitespace after %.*scsl", G_O.l, G_O.s);
 				if(!isspace(c.cur))
-					die("whitespace should follow <?csl");
+					die("whitespace should follow %.*csl", G_O.l, G_O.s);
 				return process_code(ZSTR);
 			default:
 				// oops
-				add('<');
-				add('?');
+				adds(G_O);
 				add('c');
 				add('s');
 				add(c.cur);
@@ -270,7 +298,7 @@ FINISH_CODE:
 			break;
 		case 'S':
 			noass = true;
-			switch(EXPECT("expected character, whitespace, 1 or ( after <?cS")) {
+			switch(EXPECT("expected character, whitespace, 1 or ( after %.*scS", G_O.l, G_O.s)) {
 			case ' ':
 			case '\t':
 			case '\n':
@@ -280,7 +308,7 @@ FINISH_CODE:
 			case '(':
 				name.l = 0;
 				for(;;) {
-					EXPECT("expected ) after <?cS(");
+					EXPECT("expected ) after %.*scS(", G_O.l, G_O.s);
 					if(c.cur == ')') break;
 					name.s[name.l++] = c.cur;
 					assert(name.l < 0x100);
@@ -290,14 +318,13 @@ FINISH_CODE:
 				name.s[0] = c.cur;
 				name.l = 1;
 				assert(isspace(c.next));
-				EXPECT("expected whitespace after <?cS?");
+				EXPECT("expected whitespace after %.*scS?", G_O.l, G_O.s);
 				return process_code(STRING);
 			};
 			break;
 		default:
 			// oops
-			add('<');
-			add('?');
+			adds(G_O);
 			add(c.cur);
 		};
 	}
@@ -322,8 +349,8 @@ FINISH_CODE:
 					return commit_curlit(true);
 				}
 				switch(ADVANCE()) {
-				case '<':
-					add('<');
+				case G_O[0]:
+					add(G_O[0]);
 					continue;
 				case '\\':
 					add('\\');
@@ -334,20 +361,15 @@ FINISH_CODE:
 					continue;
 				};
 			}
-			case '<':
+			case G_O[0]:
 				if(feof(in)) {
-					add('<');
+					add(G_O[0]);
 					commit_curlit(true);
 					return;
 				}
-				if(ADVANCE() != '?') {
-					// oops
-					add('<');
-					add(c.cur);
-					continue;
-				}
+				if(advance_str(G_O) == false) continue;
 				// process_directive
-				switch(EXPECT("expected stuff after <?")) {
+				switch(EXPECT("expected stuff after %.*s", G_O.l, G_O.s)) {
 				case 'C':
 					process_code(CODE);
 					break;
@@ -356,8 +378,7 @@ FINISH_CODE:
 					break;
 				default:
 					//oops
-					add('<');
-					add('?');
+					adds(G_O);
 					add(c.cur);
 					continue;
 				};
