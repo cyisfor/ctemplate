@@ -40,13 +40,19 @@ function (add_ctemplate name)
 		BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 	get_filename_component(dir "${dest}" DIRECTORY)
 	file(MAKE_DIRECTORY "${dir}")
+	if(O_OPEN)
+		list(APPEND ENV "open='${O_OPEN}'")
+	endif()
+	if(O_CLOSE)
+		list(APPEND ENV "close='${O_CLOSE}'")
+	endif()
+	list(JOIN ENV "\n" ENV)
 	add_custom_command(
 		OUTPUT "${dest}"
 		MAIN_DEPENDENCY "${source}"
 		DEPENDS ctemplate
 		COMMAND
-		$<IF:O_OPEN,open='${O_OPEN}',>
-		$<IF:O_CLOSE,close='${O_CLOSE}',>
+		${ENV}
 		$<TARGET_FILE:ctemplate> "${source}" "${dest}"
 		VERBATIM)
 	add_custom_target(
@@ -63,6 +69,12 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	target_include_directories(example PUBLIC
 		cstuff/src
 		"${CMAKE_CURRENT_BINARY_DIR}")
+
+	add_ctemplate(example2tmpl src/example2.c
+		OPEN ";|"
+		CLOSE "|;")
+	add_executable(example2 example2.c.c)
+	add_dependencies(example2 example2tmpl)
 
 #	add_dependencies(example test.template.html)
 endif()
