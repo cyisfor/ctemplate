@@ -78,6 +78,14 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	target_include_directories(example2 PRIVATE
 		cstuff/src
 		src)
+	add_custom_command(
+		OUTPUT example2.c.c.c
+		COMMAND
+		example2 > example2.c.c.c
+		DEPENDS
+		example2)
+	add_executable(example2.2
+		example2.c.c.c)
 #	add_dependencies(example test.template.html)
 endif()
 
