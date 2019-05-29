@@ -46,13 +46,13 @@ function (add_ctemplate name)
 	if(O_CLOSE)
 		list(APPEND ENV "close='${O_CLOSE}'")
 	endif()
-	list(JOIN ENV "\n" ENV)
+#	list(JOIN ENV "\n" ENV)
 	add_custom_command(
 		OUTPUT "${dest}"
 		MAIN_DEPENDENCY "${source}"
 		DEPENDS ctemplate
 		COMMAND
-		${ENV}
+		env ${ENV}
 		$<TARGET_FILE:ctemplate> "${source}" "${dest}"
 		VERBATIM)
 	add_custom_target(
@@ -70,9 +70,9 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 		cstuff/src
 		"${CMAKE_CURRENT_BINARY_DIR}")
 
-	add_ctemplate(example2tmpl src/example2.c
-		OPEN ";|"
-		CLOSE "|;")
+	add_ctemplate(example2tmpl src/example2.c example2.c.c
+		OPEN ".|"
+		CLOSE "|.")
 	add_executable(example2 example2.c.c)
 	add_dependencies(example2 example2tmpl)
 
