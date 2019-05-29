@@ -1,6 +1,8 @@
 .|C
+#include "output.h"
 int main(void) {
-	int foo = 42;
+	int foo = 5;
+	out = stdout;
 	|.
 		int main(void) {
 			puts("runtime after template goes here.");
@@ -14,10 +16,11 @@ int main(void) {
 			.|C
 					int i;
 			for(i=0;i<foo;++i) {
-				|.puts("bar");.|.
-					}
+				|. puts("bar");
+			.|C;
+			}
 			|.
-				}
-		.|
+		}
+		.|C
 			}
 |.

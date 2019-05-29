@@ -41,10 +41,10 @@ function (add_ctemplate name)
 	get_filename_component(dir "${dest}" DIRECTORY)
 	file(MAKE_DIRECTORY "${dir}")
 	if(O_OPEN)
-		list(APPEND ENV "open='${O_OPEN}'")
+		list(APPEND ENV "open=${O_OPEN}")
 	endif()
 	if(O_CLOSE)
-		list(APPEND ENV "close='${O_CLOSE}'")
+		list(APPEND ENV "close=${O_CLOSE}")
 	endif()
 #	list(JOIN ENV "\n" ENV)
 	add_custom_command(
@@ -75,7 +75,9 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 		CLOSE "|.")
 	add_executable(example2 example2.c.c)
 	add_dependencies(example2 example2tmpl)
-
+	target_include_directories(example2 PRIVATE
+		cstuff/src
+		src)
 #	add_dependencies(example test.template.html)
 endif()
 
