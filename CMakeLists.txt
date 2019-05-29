@@ -8,22 +8,30 @@ add_executable(ctemplate
 target_include_directories(ctemplate PUBLIC cstuff/src)
 
 function (add_ctemplate name)
+	set(OPTIONS)
+	set(ONEVALS OPEN CLOSE)
+	set(MULTIVALS)
+	cmake_parse_arguments(PARSE_ARGV 1 O
+		"${OPTIONS}" "${ONEVALS}" "${MULTIVALS}")
 	# add_ctemplate(foo.txt) turns (src)/foo.txt into (bin)/foo.txt.c
 	# add_ctemplate(foo.txt bar.txt.c) turns (src)/foo.txt into (bin)/bar.txt.c
 	# add_ctemplate(name source.c dest.c) turns (bin)/source.c into (bin)/dest.c
 	# all three turn their first argument into a target
-	# add_ctemplate(name "${CMAKE_CURRENT_SOURCE_DIR}/source.c" dest.c) works
-	if(ARGC EQUAL 3)
-		set(source "${ARGV1}")
-		set(dest "${ARGV2}")
+	# add_ctemplate(... OPEN "((" CLOSE "))") changes the open and close delimiters
+
+	list(LENGTH O_UNPARSED_ARGUMENTS narg)
+	if("${narg}" EQUAL 2)
+		# add_ctemplate(name source dest ...)
+		list(GET O_UNPARSED_ARGUMENTS 0 source)
+		list(GET O_UNPARSED_ARGUMENTS 1 dest)
+	elseif("${narg}" EQUAL 1)
+		# add_ctemplate(name source ...)
+		list(GET O_UNPARSED_ARGUMENTS 0 source)
+		set(dest "${source}.c")
 	else()
-		if(ARGC EQUAL 2)
-			set(source "${CMAKE_CURRENT_SOURCE_DIR}/${ARGV1}")
-			set(dest "${ARGV1}.c")
-		else()
-			set(source "${CMAKE_CURRENT_SOURCE_DIR}/${name}")
-			set(dest "${name}.c")
-		endif()
+		# add_ctemplate(name ...)
+		set(source "${name}")
+		set(dest "${name}.c")
 	endif()
 
 	get_filename_component(source "${source}" ABSOLUTE
@@ -32,12 +40,14 @@ function (add_ctemplate name)
 		BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 	get_filename_component(dir "${dest}" DIRECTORY)
 	file(MAKE_DIRECTORY "${dir}")
-	set(temp "${dest}.temp")
 	add_custom_command(
 		OUTPUT "${dest}"
 		MAIN_DEPENDENCY "${source}"
 		DEPENDS ctemplate
-		COMMAND ctemplate "${source}" "${dest}"
+		COMMAND
+		$<IF:O_OPEN,open='${O_OPEN}',>
+		$<IF:O_CLOSE,close='${O_CLOSE}',>
+		$<TARGET_FILE:ctemplate> "${source}" "${dest}"
 		VERBATIM)
 	add_custom_target(
 		"${name}"
