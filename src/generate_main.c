@@ -18,12 +18,12 @@ int main(int argc, char *argv[])
 			die("You must specify both open= and close=");
 		}
 		generate_config.open = (string){
-			.s = open,
-			.l = strlen(open)
+			.base = open,
+			.len = strlen(open)
 		};
 		generate_config.close = (string){
-			.s = close,
-			.l = strlen(close)
+			.base = close,
+			.len = strlen(close)
 		};
 	} else if(NULL != getenv("close")) {
 		die("You must also specify open= as well as close=");

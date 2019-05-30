@@ -15,8 +15,8 @@ enum kinds { EHUNNO, CODE, FMT, LIT, LITWLEN, ZSTR, STRING };
 
 struct generate_config generate_config = {
 	.keep_space = false,
-	.open = (string){ .s = "<?", .l = 2},
-	.close = (string){ .s = "?>", .l = 2},
+	.open = (string){ .base = "<?", .len = 2},
+	.close = (string){ .base = "?>", .len = 2},
 };
 
 #define G_O generate_config.open
@@ -73,12 +73,12 @@ void generate(FILE* out, FILE* in) {
 	}
 
 	void adds(string s) {
-		if(clpos + s.l > clsize) {
-			clsize = ((clpos + s.l)/1024+1)*1024;
+		if(clpos + s.len > clsize) {
+			clsize = ((clpos + s.len)/1024+1)*1024;
 			curlit = realloc(curlit, clsize);
 		}
-		memcpy(curlit + clpos, s.s, s.l);
-		clpos += s.l;
+		memcpy(curlit + clpos, s.base, s.len);
+		clpos += s.len;
 	}
 
 	void commit_curlit(bool done) {
@@ -125,11 +125,11 @@ void generate(FILE* out, FILE* in) {
 
 	bool advance_str(string str) {
 		int i;
-		for(i=1;i<str.l;++i) {
+		for(i=1;i<str.len;++i) {
 			char c = ADVANCE();
-			if(c != str.s[i]) {
+			if(c != str.base[i]) {
 				// oops, not an opening thingy
-				const string pfx = {.s = str.s, .l = i};
+				const string pfx = {.base = str.base, .len = i};
 				adds(pfx);
 				add(c);
 				return false;
@@ -144,8 +144,8 @@ void generate(FILE* out, FILE* in) {
 	bool noass;
 	char namebuf[0x100];
 	bstring name = {
-		.s = namebuf,
-		.l = 0
+		.base = namebuf,
+		.len = 0
 	};
 	
 	void process_code(enum kinds kind) {
@@ -168,7 +168,7 @@ void generate(FILE* out, FILE* in) {
 		case STRING:
 			if(!noass) {
 				PUTLIT("{ string ");
-				PUTS(name.s,name.l);
+				PUTS(name.base,name.len);
 				PUTLIT("; ");
 			} 
 		};
@@ -180,19 +180,19 @@ void generate(FILE* out, FILE* in) {
 		// output the actual code
 		for(;;) {
 			// XXX: technically could just assume EOF means ?>
-			char cc = EXPECT("expected %.* before EOF to end code", G_C.l, G_C.s);
+			char cc = EXPECT("expected %.* before EOF to end code", G_C.len, G_C.base);
 			if(cc == '\\') {
 				cc = EXPECT("expected character after backslash");
-				if(cc == G_C.s[0]) {
+				if(cc == G_C.base[0]) {
 					// escaped ?
-					add(G_C.s[0]);
+					add(G_C.base[0]);
 					ADVANCE();
 				} else {
 					// this also gets \\
 					add('\\');
 					add(cc);
 				}
-			} else if(cc == G_C.s[0]) {
+			} else if(cc == G_C.base[0]) {
 				if (advance_str(G_C) == true)
 					break;
 			} else {
@@ -227,11 +227,11 @@ FINISH_CODE:
 			if(noass) {
 				PUTLIT("output_buf((");
 				put_code();
-				PUTLIT(").s, (");
+				PUTLIT(").base, (");
 				commit_code();
-				PUTLIT(").l);\n");
+				PUTLIT(").len);\n");
 			} else {
-				PUTLIT("; }); output_buf(S.s, S.l); }\n");
+				PUTLIT("; }); output_buf(S.base, S.len); }\n");
 			}
 			break;
 		default:
@@ -246,7 +246,7 @@ FINISH_CODE:
 	}
 	
 	void process_string() {
-		switch(EXPECT("expected l, s, or whitespace after %.*sc", G_O.l, G_O.s)) {
+		switch(EXPECT("expected l, s, or whitespace after %.*sc", G_O.len, G_O.base)) {
 		case ' ':
 		case '\t':
 		case '\n':
@@ -254,15 +254,15 @@ FINISH_CODE:
 		case 'l':
 			return process_code(LIT);
 		case 's':
-			switch(EXPECT("expected l or whitespace after %.*scs", G_O.l, G_O.s)) {
+			switch(EXPECT("expected l or whitespace after %.*scs", G_O.len, G_O.base)) {
 			case ' ':
 			case '\t':
 			case '\n':
 				return process_code(LITWLEN);
 			case 'l':
-				EXPECT("whitespace after %.*scsl", G_O.l, G_O.s);
+				EXPECT("whitespace after %.*scsl", G_O.len, G_O.base);
 				if(!isspace(c.cur))
-					die("whitespace should follow %.*csl", G_O.l, G_O.s);
+					die("whitespace should follow %.*csl", G_O.len, G_O.base);
 				return process_code(ZSTR);
 			default:
 				// oops
@@ -275,27 +275,27 @@ FINISH_CODE:
 			break;
 		case 'S':
 			noass = true;
-			switch(EXPECT("expected character, whitespace, 1 or ( after %.*scS", G_O.l, G_O.s)) {
+			switch(EXPECT("expected character, whitespace, 1 or ( after %.*scS", G_O.len, G_O.base)) {
 			case ' ':
 			case '\t':
 			case '\n':
-				// just duplicate the phrase for ().s and ().l
+				// just duplicate the phrase for ().base and ().len
 				noass = true;
 				return process_code(STRING);
 			case '(':
-				name.l = 0;
+				name.len = 0;
 				for(;;) {
-					EXPECT("expected ) after %.*scS(", G_O.l, G_O.s);
+					EXPECT("expected ) after %.*scS(", G_O.len, G_O.base);
 					if(c.cur == ')') break;
-					name.s[name.l++] = c.cur;
-					assert(name.l < 0x100);
+					name.base[name.len++] = c.cur;
+					assert(name.len < 0x100);
 				}
 				return process_code(STRING);
 			default: 
-				name.s[0] = c.cur;
-				name.l = 1;
+				name.base[0] = c.cur;
+				name.len = 1;
 				assert(isspace(c.next));
-				EXPECT("expected whitespace after %.*scS?", G_O.l, G_O.s);
+				EXPECT("expected whitespace after %.*scS?", G_O.len, G_O.base);
 				return process_code(STRING);
 			};
 			break;
@@ -326,15 +326,15 @@ FINISH_CODE:
 					return commit_curlit(true);
 				}
 				cc = ADVANCE();
-				if(cc == G_O.s[0]) {
-					add(G_O.s[0]);
+				if(cc == G_O.base[0]) {
+					add(G_O.base[0]);
 				} else if(cc == '\\') {
 					add('\\');
 				} else {
 					add('\\');
 					add(cc);
 				}
-			} else if(cc == G_O.s[0]) {
+			} else if(cc == G_O.base[0]) {
 				if(feof(in)) {
 					add(cc);
 					commit_curlit(true);
@@ -342,7 +342,7 @@ FINISH_CODE:
 				}
 				if(advance_str(G_O) == false) continue;
 				// process_directive
-				switch(EXPECT("expected stuff after %.*s", G_O.l, G_O.s)) {
+				switch(EXPECT("expected stuff after %.*s", G_O.len, G_O.base)) {
 				case 'C':
 					process_code(CODE);
 					break;

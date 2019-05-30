@@ -2,9 +2,12 @@
 
 int main(int argc, char *argv[])
 {
-	string title = { .s = getenv("title") };
-	if(title.s == NULL) { title.s = "example"; title.l = sizeof("example")-1; }
-	else { title.l = strlen(title.s); }
+	string title = { .base = getenv("title") };
+	if(title.base == NULL) {
+		title = LITSTR("example");
+	}	else {
+		title.len = strlen(title.base);
+	}
 
 	int i;
 	int derp = 10;

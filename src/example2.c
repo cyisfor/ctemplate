@@ -5,7 +5,7 @@
 int main(void) {
 	int foo = 5;
 	out = stdout;
-	puts("This is compile time, making the runtime code.");
+	fputs("\\n**** This is compile time, while making the runtime code.\\n\\n", stderr);
 	|.#include <stdio.h>
 			
 		int main(void) {

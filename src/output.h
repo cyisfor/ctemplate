@@ -13,5 +13,5 @@ FILE* out = NULL;
 #define output_literal(lit) fwrite(lit,sizeof(lit)-1,1,out)
 #define output_buf(s,len) fwrite(s,len,1,out)
 #define output_fmt(fmt, ...) fprintf(out,fmt, ## __VA_ARGS__)
-#define output_str(str) output_buf(str.s, str.l);
+#define output_str(str) output_buf(str.base, str.len);
 #include "mystring.h"
