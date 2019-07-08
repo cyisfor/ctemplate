@@ -9,7 +9,7 @@
 #include <string.h> // memcpy
 #include <stdint.h> // intptr_t
 
-#define assert(a) if(!(a)) abort();
+#define alwaysassert(a) if(!(a)) abort();
 
 enum kinds { EHUNNO, CODE, FMT, LIT, LITWLEN, CSTRING, STRING };
 
@@ -201,7 +201,7 @@ void generate(FILE* out, FILE* in) {
 		}
 
 		void put_code(void) {
-			assert(clpos > 0);
+			alwaysassert(clpos > 0);
 			if(curlit[clpos-1] == '\n') {
 				// special case, ignore final \n directly before ?>
 				--clpos;
@@ -288,13 +288,13 @@ FINISH_CODE:
 					EXPECT("expected ) after %.*scS(", G_O.len, G_O.base);
 					if(c.cur == ')') break;
 					name.base[name.len++] = c.cur;
-					assert(name.len < 0x100);
+					alwaysassert(name.len < 0x100);
 				}
 				return process_code(STRING);
 			default: 
 				name.base[0] = c.cur;
 				name.len = 1;
-				assert(isspace(c.next));
+				alwaysassert(isspace(c.next));
 				EXPECT("expected whitespace after %.*scS?", G_O.len, G_O.base);
 				return process_code(STRING);
 			};
