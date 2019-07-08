@@ -5,7 +5,7 @@ add_executable(ctemplate
 	src/generate.c
 	src/generate_main.c)
 
-target_include_directories(ctemplate PUBLIC cstuff/src)
+target_include_directories(ctemplate PUBLIC cstuff)
 
 function (add_ctemplate name)
 	set(OPTIONS)
@@ -67,7 +67,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	add_ctemplate(test.template.html)
 	add_executable(example src/example.c test.template.html)
 	target_include_directories(example PUBLIC
-		cstuff/src
+		cstuff
 		"${CMAKE_CURRENT_BINARY_DIR}")
 
 	add_ctemplate(example2tmpl src/example2.c example2.c.c
@@ -76,7 +76,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	add_executable(example2 example2.c.c)
 	add_dependencies(example2 example2tmpl)
 	target_include_directories(example2 PRIVATE
-		cstuff/src
+		cstuff
 		src)
 	add_custom_command(
 		OUTPUT example2.c.c.c

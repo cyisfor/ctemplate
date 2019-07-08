@@ -11,7 +11,7 @@
 
 #define assert(a) if(!(a)) abort();
 
-enum kinds { EHUNNO, CODE, FMT, LIT, LITWLEN, ZSTR, STRING };
+enum kinds { EHUNNO, CODE, FMT, LIT, LITWLEN, CSTRING, STRING };
 
 struct generate_config generate_config = {
 	.keep_space = false,
@@ -163,7 +163,7 @@ void generate(FILE* out, FILE* in) {
 		case LITWLEN:
 			PUTLIT("output_buf(");
 			break;
-		case ZSTR:
+		case CSTRING:
 			PUTLIT("{ const char* s = ");
 		case STRING:
 			if(!noass) {
@@ -219,7 +219,7 @@ FINISH_CODE:
 			commit_code();
 			PUTLIT("\n");
 			break;
-		case ZSTR:
+		case CSTRING:
 			commit_code();
 			PUTLIT("; output_buf(s,strlen(s)); }\n");
 			break;
@@ -263,7 +263,7 @@ FINISH_CODE:
 				EXPECT("whitespace after %.*scsl", G_O.len, G_O.base);
 				if(!isspace(c.cur))
 					die("whitespace should follow %.*csl", G_O.len, G_O.base);
-				return process_code(ZSTR);
+				return process_code(CSTRING);
 			default:
 				// oops
 				adds(G_O);
