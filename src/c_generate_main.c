@@ -1,4 +1,5 @@
 #include "c_generate.h"
+#include "ensure.h"
 #include "mmapfile.h"
 #include "mystring.h"
 #include <string.h> // memcpy

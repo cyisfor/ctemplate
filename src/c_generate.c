@@ -5,6 +5,7 @@
 #include "internal_output.h"
 #include "processing_type.h"
 #include "note.h"
+
 #include "mystring.h"
 #include <string.h> // memmem
 #include <ctype.h> // isspace
@@ -265,19 +266,6 @@ static void process_code(struct parser* p, string code) {
 	};
 }
 
-void generate(FILE* out, string in, struct generate_options opt) {
-	if(opt.tag.base == NULL) {
-		opt.tag = LITSTR("ctemplate");
-	}
-	struct parser p = {
-		.out = out,
-		.in = in
-	};
-	while(pass_statement(&p, opt.tag));
-	commit_rest(&p);
-}
-
-
 bool pass_statement(struct parser* p, string tag) {
 	// return false only when no further statements can be found.
 	if(!find_and_pass(p, tag)) {
@@ -327,4 +315,17 @@ bool pass_statement(struct parser* p, string tag) {
 		p->cur = p->end_string+1;
 		return true;
 	}
+}
+
+
+void generate(FILE* out, string in, struct generate_options opt) {
+	if(opt.tag.base == NULL) {
+		opt.tag = LITSTR("ctemplate");
+	}
+	struct parser p = {
+		.out = out,
+		.in = in
+	};
+	while(pass_statement(&p, opt.tag));
+	commit_rest(&p);
 }

@@ -1,5 +1,7 @@
 #include "internal_output.h"
 
+#define PUTLIT(lit) fwrite(lit, sizeof(lit)-1, 1, out)
+
 void output_escaped(FILE* out, string s) {
 	size_t i;
 	size_t lastnl = 0;
