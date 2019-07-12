@@ -1,5 +1,7 @@
 /* use mmap for any files outside this function */
 
+#include "internal_output.h"
+
 #define output_string(str) fwrite(str.base, str.len, 1, out)
 #define output_literal(lit) fwrite(lit, sizeof(lit)-1, 1, out)
 #define output_char(c) fputc(c, out)
@@ -17,11 +19,11 @@ struct parser {
 	FILE* out;
 };
 
-bool find(const struct parser* p, string needle) {
+bool pass(const struct parser* p, string needle) {
 	const char* s = memmem(p->in.base + p->cur, p->in.len - p->cur,
 						   needle.base, needle.len);
 	if(s == NULL) return false;
-	p->cur = s - p->in.base;
+	p->cur = s - p->in.base + needle.len;
 	return true;
 }
 
@@ -30,11 +32,12 @@ void commit_string(struct parser* p) {
 		.base = p->in.base + p->start_string,
 		.len = p->end_string - p->start_string
 	};
-	if(s.len == 0) return; // allows for files starting in ctemplate {}
 	p->start_string = p->end_string+1; // XXX: +1?
-	output_literal(p->out, "output_literal(\"");
-	output_escaped(p->out, s);
-	output_literal(p->out, "\");"); /* XXX: semicolon? do { ... } while(0)? */
+	if(s.len == 0) return; // allows for files starting in ctemplate {}
+	FILE* out = p->out;
+	output_literal("output_literal(\"");
+	output_escaped(s);
+	output_literal("\");"); /* XXX: semicolon? do { ... } while(0)? */
 }
 
 static
@@ -45,15 +48,15 @@ void commit_rest(struct parser* p) {
 }
 
 static
-void eat_space(struct parser* p) {
-	while(isspace(p->in.base[p->cur])) {
+void pass_space(struct parser* p) {
+	while(p->cur < p->in.len && isspace(p->in.base[p->cur])) {
 		++p->cur;
 	}	
 }
 
-bool find_tag(struct parser* p, string tag) {
+bool pass_statement(struct parser* p, string tag) {
+	// return false only when no further statements can be found.
 	if(!pass(p, tag)) {
-		commit_rest(p);
 		return false;
 	}
 	p->end_string = p->cur - tag.len;
@@ -61,8 +64,9 @@ bool find_tag(struct parser* p, string tag) {
 	if(pass_char(p, '(')) {
 		if(!pass_char(p,')')) {
 			warn("EOF after opening ctemplate (type) paren without closing");
-			commit_rest(p);
-			return false;
+			p->end_string += tag.len;
+			p->cur = p->end_string+1;
+			return true;
 		}
 		string typestr = {
 			.base = p->in.base + p->cur,
@@ -93,12 +97,16 @@ bool find_tag(struct parser* p, string tag) {
 			warn("ctemplate token found without close paren!");
 			// NOTE: pass_* MUST NOT advance if not found
 			assert(p->cur == start_code);
-			return false;
+			p->end_string = p->cur;
+			p->cur = p->end_string+1;
+			return true;
 		}
 	} else {
 		// XXX: this probably shouldn't even be a warning
 		warn("ctemplate token found without open paren");
-		return false;
+		p->end_string = p->cur;
+		p->cur = p->end_string+1;
+		return true;
 	}
 }
 
@@ -133,24 +141,16 @@ static void process_code(struct parser* p, string code) {
 	};
 }
 
-		
-		
-		
-		
-			
-	
-			
-
-
 void generate(FILE* out, string in, struct generate_options opt) {
 	if(opt.tag.base == NULL) {
 		opt.tag = LITSTR("ctemplate");
 	}
-	size_t start_string = 0;
-	size_t end_string = 0;
-	enum mode {
-		FIND_TAG
+	struct parser p = {
+		.out = out,
+		.in = in
 	};
-
+	while(pass_statement(&p, opt.tag));
+	commit_rest(&p);
+}
 		
 		
