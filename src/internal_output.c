@@ -1,6 +1,6 @@
 #include "internal_output.h"
 
-void output_quoted(FILE* out, string s) {
+void output_escaped(FILE* out, string s) {
 	size_t i;
 	size_t lastnl = 0;
 	for(i=0;i<s.len;++i) {

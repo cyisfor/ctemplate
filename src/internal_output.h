@@ -1,4 +1,5 @@
 #include "mystring.h"
 #include <stdio.h>
 
-void output_quoted(FILE* out, string s);
+void output_escaped(FILE* out, string s);
+/* XXX: should that be exported?? */
