@@ -7,6 +7,18 @@ add_executable(ctemplate
 
 target_include_directories(ctemplate PUBLIC cstuff)
 
+add_library(note note/note.c)
+target_include_directories(note PUBLIC note)
+
+add_executable(derp_ctemplate
+  src/internal_output.c
+  cstuff/mmapfile.c
+  src/c_generate.c
+  src/c_generate_main.c)
+
+target_include_directories(derp_ctemplate PRIVATE cstuff)
+target_link_libraries(derp_ctemplate PRIVATE note)
+
 function (add_ctemplate name)
 	set(OPTIONS)
 	set(ONEVALS OPEN CLOSE)
