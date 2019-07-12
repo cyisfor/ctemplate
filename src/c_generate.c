@@ -35,6 +35,7 @@ struct parser {
 	enum processing_type type;
 	unsigned char nparens;
 	enum paren_types parens[MAX_PARENS];
+	size_t close_paren_length;
 };
 
 bool find_and_pass(struct parser* p, string needle) {
@@ -151,25 +152,78 @@ bool pass_open_paren(struct parser* p) {
 #define DOCHAR pass_char
 #include "paren_search.snippet.h"
 
-bool find_and_pass_close_paren(struct parser* p) {
+bool finish_paren(struct parser* p, enum paren_direction direction) {
+	unsigned char i;
+	size_t start = p->cur;
+	for(i=1;i<p->nparens;++i) {
+		if(!pass_next_paren(p, p->parens[i], direction)) {
+			p->cur = start;
+			return false;
+		}
+	}
+	return true;
+}
+
+bool find_and_pass_parenthetical_block(struct parser* p) {
 	if(p->nparens == 0) {
 		ERROR("no parens exist to close?");
 	}
 	size_t oldcur = p->cur;
-FIND_NEXT_POSSIBILITY:	
-	while(find_and_pass_first_close_paren(p, p->parens[0])) {
-		unsigned char i;
-		size_t old_first = p->cur;
-		for(i=1;i<p->nparens;++i) {
-			if(!pass_next_close_paren(p, p->parens[i])) {
-				p->cur = old_first;
-				goto FIND_NEXT_POSSIBILITY;
+	bool open_found = find_and_pass_first_paren(p, p->parens[0], OPEN_PAREN);
+	if(!open_found) {
+		p->cur = oldcur;
+		return false;
+	}
+	if(!finish_paren(p, OPEN_PAREN)) {
+		p->cur = oldcur;
+		return false;
+	}
+	p->start_code = p->cur;
+	int level = 1;
+	for(;;) {
+		size_t derp = p->cur;
+		bool open_found = find_and_pass_first_paren(p, p->parens[0], OPEN_PAREN);
+		size_t open_pos = p->cur;
+		bool close_found = find_and_pass_first_paren(p, p->parens[0], CLOSE_PAREN);
+		size_t close_pos = p->cur;
+		if(open_found && close_found) {
+			if(open_pos < close_pos) {
+				p->cur = open_pos;
+				if(finish_paren(p, OPEN_PAREN)) {
+					++level;
+				}
+				if(level != 0) {
+					p->cur = close_pos;
+					if(finish_paren(p, CLOSE_PAREN)) {
+						assert(level > 0);
+						--level;
+						if(level == 0) break;
+					}
+				}
+			} else {
+				assert(level != 0);
+				p->cur = close_pos;
+				if(finish_paren(p, CLOSE_PAREN)) {
+					assert(level > 0);
+					--level;
+					if(level == 0) break;
+				}
+				if(finish_paren(p, OPEN_PAREN)) {
+					++level;
+				}
+			}
+		} else if(open_found) {
+			// !close_found
+			ERROR("unbalanced parentheses, since no close found but level > 0");
+		} else {
+			if(finish_paren(p, CLOSE_PAREN)) {
+				assert(level > 0);
+				--level;
+				if(level == 0) break;
 			}
 		}
-		return true;
 	}
-	p->cur = oldcur;
-	return false;
+	return true;
 }
 
 bool pass_statement(struct parser* p, string tag) {
@@ -207,32 +261,11 @@ bool pass_statement(struct parser* p, string tag) {
 		}
 	}
 	pass_space(p);
-	if(pass_open_paren(p)) {
-		// up to the end of the open paren
-		size_t start_code = p->cur;
-		int level = 1;
-		do {
-			switch(find_and_pass_paren(p)) {
-			case OPEN_PAREN:
-				++level;
-				break;
-			case CLOSE_PAREN:
-				--level;
-				break;
-			case EOF:
-				WARN("ctemplate token found without close paren!");
-				// NOTE: pass_* MUST NOT advance if not found
-				assert(p->cur == start_code);
-				p->end_string = p->cur;
-				p->cur = p->end_string+1;
-				return true;
-			};
-		} while(level != 0);
-		
+	if(find_and_pass_parenthetical_block(p)) {
 		// close_paren_length in characters NOT tokens
 		string code = {
-			.base = p->in.base + start_code,
-			.len = p->cur - start_code - p->close_paren_length
+			.base = p->in.base + p->start_code,
+			.len = p->cur - p->start_code - p->close_paren_length
 		};
 		process_code(p, code);
 	} else {
