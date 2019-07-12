@@ -1,6 +1,7 @@
 #define _GNU_SOURCE // memmem
 /* use mmap for any files outside this function */
 
+#include "c_generate.h"
 #include "internal_output.h"
 #include "processing_type.h"
 #include "note.h"
@@ -8,15 +9,20 @@
 #include <string.h> // memmem
 #include <ctype.h> // isspace
 
-
 #define output_string(str) fwrite(str.base, str.len, 1, out)
 #define output_literal(lit) fwrite(lit, sizeof(lit)-1, 1, out)
 #define output_char(c) fputc(c, out)
 #define output_escaped(unesc) output_escaped(out, unesc)
 
-struct generate_options {
-	string tag;
+enum paren_types {
+	PAREN,
+	SQUARE_BRACKET,
+	CURLY_BRACKET,
+	ANGLE_BRACKET,
+	DOUBLEQUOTE
 };
+
+#define MAX_PARENS 255
 
 struct parser {
 	string in;
@@ -25,13 +31,22 @@ struct parser {
 	size_t end_string;
 	FILE* out;
 	enum processing_type type;
+	unsigned char nparens;
+	enum paren_types parens[MAX_PARENS];
 };
 
-bool pass(struct parser* p, string needle) {
+bool find_and_pass(struct parser* p, string needle) {
 	const char* s = memmem(p->in.base + p->cur, p->in.len - p->cur,
 						   needle.base, needle.len);
 	if(s == NULL) return false;
 	p->cur = s - p->in.base + needle.len;
+	return true;
+}
+
+bool find_and_pass_char(struct parser* p, char needle) {
+	const char* s = memchr(p->in.base + p->cur, p->in.len - p->cur, needle);
+	if(s == NULL) return false;
+	p->cur = s - p->in.base + 1;
 	return true;
 }
 
@@ -72,14 +87,52 @@ bool pass_char(struct parser* p, char c) {
 	return false;
 }
 
+static
+void add_paren(struct parser* p, enum paren_types paren) {
+	++p->nparens;
+	assert(p->nparens < MAX_PARENS);
+	p->paren[p->nparens-1] = paren;
+}
+
+static
+bool pass_open_paren(struct parser* p) {
+	bool foundsome = false;
+	for(;;) {
+		if(pass_char(p, '(')) {
+			add_paren(p, PAREN);
+		} else if(pass_char(p, '[')) {
+			add_paren(p, SQUARE_BRACKET);
+		} else if(pass_char(p, '{')) {
+			add_paren(p, CURLY_BRACKET);
+		} else if(pass_char(p, '<')) {
+			add_paren(p, ANGLE_BRACKET);
+		} else if(pass_char(p, '"')) {
+			add_paren(p, DOUBLEQUOTE);
+		} else if(pass_string(p, "/*")) {
+			add_paren(p, C_COMMENT);
+		} else if(pass_string(p, "//")) {
+			add_paren(p, C_LINE_COMMENT);
+		} else {
+			return foundsome;
+		}
+		foundsome = true;
+	}
+}
+
+
+		
+		if(find_and_pass_char(p, ')'
+		
+
 bool pass_statement(struct parser* p, string tag) {
 	// return false only when no further statements can be found.
-	if(!pass(p, tag)) {
+	if(!find_and_pass(p, tag)) {
 		return false;
 	}
 	p->end_string = p->cur - tag.len;
 	pass_space(p);
 	if(pass_char(p, '(')) {
+		size_t start_type = p->cur;
 		if(!pass_char(p,')')) {
 			WARN("EOF after opening ctemplate (type) paren without closing");
 			p->end_string += tag.len;
@@ -88,14 +141,20 @@ bool pass_statement(struct parser* p, string tag) {
 		}
 		string typestr = {
 			.base = p->in.base + p->cur,
-			.len = s - p->in.base + p->cur
+			.len = p->cur - 1 - start_type
 		};
+		if(typestr.len == 0) {
+			WARN("empty type string?");
+			p->end_string += tag.len;
+			p->cur = p->end_string+1;
+			return true;
+		}
 		enum processing_type type =
 			lookup_processing_type(typestr.base, typestr.len);
 		p->type = type;
 		if(type == processing_type_UNKNOWN) {
 			// probably unspecified type ctemplate (somecode += 42)
-			add_open_paren(p, OPEN_PAREN);
+			add_paren(p, PAREN);
 			++p->cur;
 		}
 	}
