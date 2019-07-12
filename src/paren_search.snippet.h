@@ -2,7 +2,7 @@ static
 bool FUNCTION_NAME(struct parser* p, enum paren_types type) {
 	switch(type) {
 	case C_COMMENT:
-		if(!DOSTRING(p, "*/")) return false;
+		if(!DOSTRING(p, LITSTR("*/"))) return false;
 		break;
 	default: {
 		unsigned char thechar = 0;

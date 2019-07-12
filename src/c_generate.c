@@ -80,6 +80,18 @@ void pass_space(struct parser* p) {
 }
 
 static
+bool pass(struct parser* p, string needle) {
+	if(p->in.len <= p->cur + needle.len) return false;
+	if(0 == memcmp(p->in.base + p->cur,
+				   needle.base,
+				   needle.len)) {
+		p->cur += needle.len;
+		return true;
+	}
+	return false;
+}
+
+static
 bool pass_char(struct parser* p, unsigned char c) {
 	if(p->in.len == p->cur) return false;
 	if(p->in.base[p->cur] == c) {
@@ -110,9 +122,9 @@ bool pass_open_paren(struct parser* p) {
 			add_paren(p, ANGLE_BRACKET);
 		} else if(pass_char(p, '"')) {
 			add_paren(p, DOUBLEQUOTE);
-		} else if(pass(p, "/*")) {
+		} else if(pass(p, LITSTR("/*"))) {
 			add_paren(p, C_COMMENT);
-		} else if(pass(p, "//")) {
+		} else if(pass(p, LITSTR("//"))) {
 			add_paren(p, C_LINE_COMMENT);
 		} else {
 			return foundsome;
@@ -190,7 +202,7 @@ bool pass_statement(struct parser* p, string tag) {
 	if(pass_open_paren(p)) {
 		// up to the end of the open paren
 		size_t start_code = p->cur;
-		if(pass_close_paren(p)) {
+		if(find_and_pass_close_paren(p)) {
 			// close_paren_length in characters NOT tokens
 			string code = {
 				.base = p->in.base + start_code,
