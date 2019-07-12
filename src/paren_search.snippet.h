@@ -1,12 +1,12 @@
 static
-bool FUNCTION_NAME(struct parser* p, unsigned char i) {
-	switch(p->parens[i]) {
+bool FUNCTION_NAME(struct parser* p, enum paren_types type) {
+	switch(type) {
 	case C_COMMENT:
 		if(!DOSTRING(p, "*/")) return false;
 		break;
 	default: {
 		unsigned char thechar = 0;
-		switch(p->parens[i]) {
+		switch(type) {
 		case C_LINE_COMMENT:
 			thechar = '\n';
 			break;				
@@ -26,9 +26,13 @@ bool FUNCTION_NAME(struct parser* p, unsigned char i) {
 			thechar = '"';
 			break;
 		default:
-			ERROR("what?");
+			ERROR("what? %d", type);
 		};
 		if(!DOCHAR(p, thechar)) return false;
 	}
 	};
 }
+
+#undef FUNCTION_NAME
+#undef DOSTRING
+#undef DOCHAR

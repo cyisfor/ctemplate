@@ -36,15 +36,15 @@ struct parser {
 };
 
 bool find_and_pass(struct parser* p, string needle) {
-	const char* s = memmem(p->in.base + p->cur, p->in.len - p->cur,
-						   needle.base, needle.len);
+	const unsigned char* s = memmem(p->in.base + p->cur, p->in.len - p->cur,
+									needle.base, needle.len);
 	if(s == NULL) return false;
 	p->cur = s - p->in.base + needle.len;
 	return true;
 }
 
-bool find_and_pass_char(struct parser* p, char needle) {
-	const char* s = memchr(p->in.base + p->cur, p->in.len - p->cur, needle);
+bool find_and_pass_char(struct parser* p, unsigned char needle) {
+	const unsigned char* s = memchr(p->in.base + p->cur, p->in.len - p->cur, needle);
 	if(s == NULL) return false;
 	p->cur = s - p->in.base + 1;
 	return true;
@@ -78,7 +78,7 @@ void pass_space(struct parser* p) {
 }
 
 static
-bool pass_char(struct parser* p, char c) {
+bool pass_char(struct parser* p, unsigned char c) {
 	if(p->in.len == p->cur) return false;
 	if(p->in.base[p->cur] == c) {
 		++p->cur;
@@ -119,10 +119,33 @@ bool pass_open_paren(struct parser* p) {
 	}
 }
 
+#define FUNCTION_NAME find_and_pass_first_close_paren
+#define DOSTRING find_and_pass
+#define DOCHAR find_and_pass_char
+#include "paren_search.snippet.h"
 
-		
-		if(find_and_pass_char(p, ')'
-		
+#define FUNCTION_NAME pass_next_close_paren
+#define DOSTRING pass
+#define DOCHAR pass_char
+#include "paren_search.snippet.h"
+
+bool find_and_pass_close_paren(struct parser* p) {
+	if(p->nparens == 0) {
+		ERROR("no parens exist to close?");
+	}
+	size_t oldcur = p->cur;
+	if(!find_and_pass_first_close_paren(p, p->nparens[0])) {
+		return false;
+	}
+	unsigned char i;
+	for(i=1;i<p->nparens;++i) {
+		if(!pass_next_close_paren(p, p->parens[i])) {
+			p->cur = oldcur;
+			return false;
+		}
+	}
+	return true;
+}
 
 bool pass_statement(struct parser* p, string tag) {
 	// return false only when no further statements can be found.
