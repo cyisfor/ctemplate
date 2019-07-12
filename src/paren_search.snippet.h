@@ -1,38 +1,39 @@
+#define ONE(type,char) type: return DOCHAR(p, char)
+
 static
-bool FUNCTION_NAME(struct parser* p, enum paren_types type) {
-	switch(type) {
-	case C_COMMENT:
-		if(!DOSTRING(p, LITSTR("*/"))) return false;
-		break;
-	default: {
-		unsigned char thechar = 0;
+bool FUNCTION_NAME(struct parser* p, enum paren_types type, enum paren_direction direction) {
+	if(direction == OPEN_PAREN) {
 		switch(type) {
 		case C_LINE_COMMENT:
-			thechar = '\n';
-			break;				
-		case PAREN:
-			thechar = ')';
-			break;
-		case SQUARE_BRACKET:
-			thechar = ']';
-			break;
-		case CURLY_BRACKET:
-			thechar = '}';
-			break;
-		case ANGLE_BRACKET:
-			thechar = '>';
-			break;
-		case DOUBLEQUOTE:
-			thechar = '"';
-			break;
+			return DOSTRING(p, LITSTR("//"));
+		case C_COMMENT:
+			return DOSTRING(p, LITSTR("/*"));
+		case ONE(PAREN, '(');
+		case ONE(SQUARE_BRACKET, '[');
+		case ONE(CURLY_BRACKET, '{');
+		case ONE(ANGLE_BRACKET, '<');
+		case ONE(DOUBLEQUOTE, '"');
 		default:
-			ERROR("what? %d", type);
+			ERROR("huh? %d", type);
 		};
-		if(!DOCHAR(p, thechar)) return false;
+	} else {
+		switch(type) {
+		case C_COMMENT:
+			return DOSTRING(p, LITSTR("*/"));
+		case ONE(C_LINE_COMMENT, '\n');
+		case ONE(PAREN, ')');
+		case ONE(SQUARE_BRACKET, ']');
+		case ONE(CURLY_BRACKET, '}');
+		case ONE(ANGLE_BRACKET, '>');
+		case ONE(DOUBLEQUOTE, '"');
+		default:
+			ERROR("huh?? %d", type);
+		};			
 	}
-	};
+	ERROR("Should never get here");
 }
 
 #undef FUNCTION_NAME
 #undef DOSTRING
 #undef DOCHAR
+#undef ONE

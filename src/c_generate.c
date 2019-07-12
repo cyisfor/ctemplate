@@ -106,6 +106,14 @@ void add_paren(struct parser* p, enum paren_types paren) {
 	++p->nparens;
 	assert(p->nparens < MAX_PARENS);
 	p->parens[p->nparens-1] = paren;
+	switch(paren) {
+	case C_COMMENT:
+		p->close_paren_length += 2;
+		break;
+	default:
+		++p->close_paren_length;
+		break;
+	};
 }
 
 static
@@ -133,12 +141,12 @@ bool pass_open_paren(struct parser* p) {
 	}
 }
 
-#define FUNCTION_NAME find_and_pass_first_close_paren
+#define FUNCTION_NAME find_and_pass_first_paren
 #define DOSTRING find_and_pass
 #define DOCHAR find_and_pass_char
 #include "paren_search.snippet.h"
 
-#define FUNCTION_NAME pass_next_close_paren
+#define FUNCTION_NAME pass_next_paren
 #define DOSTRING pass
 #define DOCHAR pass_char
 #include "paren_search.snippet.h"
@@ -202,22 +210,31 @@ bool pass_statement(struct parser* p, string tag) {
 	if(pass_open_paren(p)) {
 		// up to the end of the open paren
 		size_t start_code = p->cur;
-		if(find_and_pass_close_paren(p)) {
-			// close_paren_length in characters NOT tokens
-			string code = {
-				.base = p->in.base + start_code,
-				.len = p->cur - start_code - p->close_paren_length
+		int level = 1;
+		do {
+			switch(find_and_pass_paren(p)) {
+			case OPEN_PAREN:
+				++level;
+				break;
+			case CLOSE_PAREN:
+				--level;
+				break;
+			case EOF:
+				WARN("ctemplate token found without close paren!");
+				// NOTE: pass_* MUST NOT advance if not found
+				assert(p->cur == start_code);
+				p->end_string = p->cur;
+				p->cur = p->end_string+1;
+				return true;
 			};
-			process_code(p, code);
-			return true;
-		} else {
-			warn("ctemplate token found without close paren!");
-			// NOTE: pass_* MUST NOT advance if not found
-			assert(p->cur == start_code);
-			p->end_string = p->cur;
-			p->cur = p->end_string+1;
-			return true;
-		}
+		} while(level != 0);
+		
+		// close_paren_length in characters NOT tokens
+		string code = {
+			.base = p->in.base + start_code,
+			.len = p->cur - start_code - p->close_paren_length
+		};
+		process_code(p, code);
 	} else {
 		// XXX: this probably shouldn't even be a warning
 		warn("ctemplate token found without open paren");
