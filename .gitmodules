@@ -4,3 +4,6 @@
 [submodule "note"]
 	path = note
 	url = git://github.com/cyisfor/note.git
+[submodule "str_to_enum_trie"]
+	path = str_to_enum_trie
+	url = git://github.com/cyisfor/str_to_enum_trie.git

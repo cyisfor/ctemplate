@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 	tempname[destlen+LITSIZ(".temp")] = 0;
 	FILE* output = fopen(tempname, "wt");
 	assert(output);
-	generate(output, input);
+	generate(output, input, opts);
 	ensure0(munmap((void*)input.base, input.len));
 	ensure0(fflush(output));
 	ensure0(fclose(output));

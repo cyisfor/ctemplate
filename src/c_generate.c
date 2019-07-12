@@ -1,6 +1,10 @@
+#define _GNU_SOURCE // memmem
 /* use mmap for any files outside this function */
 
 #include "internal_output.h"
+#include "mystring.h"
+#include <string.h> // 
+
 
 #define output_string(str) fwrite(str.base, str.len, 1, out)
 #define output_literal(lit) fwrite(lit, sizeof(lit)-1, 1, out)

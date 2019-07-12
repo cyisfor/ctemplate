@@ -16,7 +16,7 @@ void output_escaped(FILE* out, string s) {
 		case '\n':
 			// this logically divides the string up into "..." things, which
 			// the compiler will concatenate
-			if(i == l - 1 || (i - lastnl) < 4) {
+			if(i == s.len - 1 || (i - lastnl) < 4) {
 				// ...except at the end, or if there was a newline recently
 				PUTLIT("\\n");
 			} else {

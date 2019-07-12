@@ -10,14 +10,15 @@ target_include_directories(ctemplate PUBLIC cstuff)
 add_library(note note/note.c)
 target_include_directories(note PUBLIC note)
 
+add_subdirectory(cstuff)
+add_cstuff(mmapfile)
+
 add_executable(derp_ctemplate
   src/internal_output.c
-  cstuff/mmapfile.c
   src/c_generate.c
   src/c_generate_main.c)
 
-target_include_directories(derp_ctemplate PRIVATE cstuff)
-target_link_libraries(derp_ctemplate PRIVATE note)
+target_link_libraries(derp_ctemplate PRIVATE note cstuff)
 
 function (add_ctemplate name)
 	set(OPTIONS)
