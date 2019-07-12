@@ -13,11 +13,15 @@ target_include_directories(note PUBLIC note)
 add_subdirectory(cstuff)
 add_cstuff(mmapfile)
 
+add_subdirectory(str_to_enum_trie)
+str_to_enum_trie(processing_type src/processing_types.list)
+
 add_executable(derp_ctemplate
+  processing_type.c
   src/internal_output.c
   src/c_generate.c
   src/c_generate_main.c)
-
+target_include_directories(derp_ctemplate PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(derp_ctemplate PRIVATE note cstuff)
 
 function (add_ctemplate name)

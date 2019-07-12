@@ -2,8 +2,10 @@
 /* use mmap for any files outside this function */
 
 #include "internal_output.h"
+#include "processing_type.h"
 #include "mystring.h"
-#include <string.h> // 
+#include <string.h> // memmem
+#include <ctype.h> // isspace
 
 
 #define output_string(str) fwrite(str.base, str.len, 1, out)
@@ -21,9 +23,10 @@ struct parser {
 	size_t start_string;
 	size_t end_string;
 	FILE* out;
+	enum processing_type type;
 };
 
-bool pass(const struct parser* p, string needle) {
+bool pass(struct parser* p, string needle) {
 	const char* s = memmem(p->in.base + p->cur, p->in.len - p->cur,
 						   needle.base, needle.len);
 	if(s == NULL) return false;
