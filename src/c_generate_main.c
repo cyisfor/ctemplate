@@ -1,5 +1,9 @@
 #include "c_generate.h"
 #include "mmapfile.h"
+#include "mystring.h"
+#include <string.h> // memcpy
+#include <assert.h>
+
 int main(int argc, char *argv[])
 {
 	struct generate_options opts = {};

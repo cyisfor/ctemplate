@@ -152,5 +152,3 @@ void generate(FILE* out, string in, struct generate_options opt) {
 	while(pass_statement(&p, opt.tag));
 	commit_rest(&p);
 }
-		
-		
