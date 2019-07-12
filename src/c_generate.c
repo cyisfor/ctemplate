@@ -310,7 +310,7 @@ bool pass_statement(struct parser* p, string tag) {
 		process_code(p, code);
 	} else {
 		// XXX: this probably shouldn't even be a warning
-		warn("ctemplate token found without open paren");
+		WARN("ctemplate token found without open paren");
 		p->end_string = p->cur;
 		p->cur = p->end_string+1;
 		return true;

@@ -2,6 +2,8 @@
 #include "ensure.h"
 #include "mmapfile.h"
 #include "mystring.h"
+#include <sys/mman.h> // munmap
+
 #include <string.h> // memcpy
 #include <assert.h>
 
