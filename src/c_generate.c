@@ -3,6 +3,7 @@
 
 #include "internal_output.h"
 #include "processing_type.h"
+#include "note.h"
 #include "mystring.h"
 #include <string.h> // memmem
 #include <ctype.h> // isspace
@@ -61,6 +62,16 @@ void pass_space(struct parser* p) {
 	}	
 }
 
+static
+bool pass_char(struct parser* p, char c) {
+	if(p->in.len == p->cur) return false;
+	if(p->in.base[p->cur] == c) {
+		++p->cur;
+		return true;
+	}
+	return false;
+}
+
 bool pass_statement(struct parser* p, string tag) {
 	// return false only when no further statements can be found.
 	if(!pass(p, tag)) {
@@ -70,7 +81,7 @@ bool pass_statement(struct parser* p, string tag) {
 	pass_space(p);
 	if(pass_char(p, '(')) {
 		if(!pass_char(p,')')) {
-			warn("EOF after opening ctemplate (type) paren without closing");
+			WARN("EOF after opening ctemplate (type) paren without closing");
 			p->end_string += tag.len;
 			p->cur = p->end_string+1;
 			return true;
