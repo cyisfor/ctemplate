@@ -19,7 +19,9 @@ enum paren_types {
 	SQUARE_BRACKET,
 	CURLY_BRACKET,
 	ANGLE_BRACKET,
-	DOUBLEQUOTE
+	DOUBLEQUOTE,
+	C_COMMENT,
+	C_LINE_COMMENT
 };
 
 #define MAX_PARENS 255
@@ -36,15 +38,15 @@ struct parser {
 };
 
 bool find_and_pass(struct parser* p, string needle) {
-	const unsigned char* s = memmem(p->in.base + p->cur, p->in.len - p->cur,
+	const char* s = memmem(p->in.base + p->cur, p->in.len - p->cur,
 									needle.base, needle.len);
 	if(s == NULL) return false;
-	p->cur = s - p->in.base + needle.len;
+	p->cur = (s - p->in.base) + needle.len;
 	return true;
 }
 
 bool find_and_pass_char(struct parser* p, unsigned char needle) {
-	const unsigned char* s = memchr(p->in.base + p->cur, p->in.len - p->cur, needle);
+	const char* s = memchr(p->in.base + p->cur, p->in.len - p->cur, needle);
 	if(s == NULL) return false;
 	p->cur = s - p->in.base + 1;
 	return true;
@@ -91,7 +93,7 @@ static
 void add_paren(struct parser* p, enum paren_types paren) {
 	++p->nparens;
 	assert(p->nparens < MAX_PARENS);
-	p->paren[p->nparens-1] = paren;
+	p->parens[p->nparens-1] = paren;
 }
 
 static
@@ -108,9 +110,9 @@ bool pass_open_paren(struct parser* p) {
 			add_paren(p, ANGLE_BRACKET);
 		} else if(pass_char(p, '"')) {
 			add_paren(p, DOUBLEQUOTE);
-		} else if(pass_string(p, "/*")) {
+		} else if(pass(p, "/*")) {
 			add_paren(p, C_COMMENT);
-		} else if(pass_string(p, "//")) {
+		} else if(pass(p, "//")) {
 			add_paren(p, C_LINE_COMMENT);
 		} else {
 			return foundsome;
@@ -134,17 +136,20 @@ bool find_and_pass_close_paren(struct parser* p) {
 		ERROR("no parens exist to close?");
 	}
 	size_t oldcur = p->cur;
-	if(!find_and_pass_first_close_paren(p, p->nparens[0])) {
-		return false;
-	}
-	unsigned char i;
-	for(i=1;i<p->nparens;++i) {
-		if(!pass_next_close_paren(p, p->parens[i])) {
-			p->cur = oldcur;
-			return false;
+FIND_NEXT_POSSIBILITY:	
+	while(find_and_pass_first_close_paren(p, p->parens[0])) {
+		unsigned char i;
+		size_t old_first = p->cur;
+		for(i=1;i<p->nparens;++i) {
+			if(!pass_next_close_paren(p, p->parens[i])) {
+				p->cur = old_first;
+				goto FIND_NEXT_POSSIBILITY;
+			}
 		}
+		return true;
 	}
-	return true;
+	p->cur = oldcur;
+	return false;
 }
 
 bool pass_statement(struct parser* p, string tag) {
