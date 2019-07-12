@@ -24,6 +24,11 @@ enum paren_types {
 	C_LINE_COMMENT
 };
 
+enum paren_direction {
+	OPEN_PAREN,
+	CLOSE_PAREN
+};
+
 #define MAX_PARENS 255
 
 struct parser {
@@ -31,6 +36,7 @@ struct parser {
 	size_t cur;
 	size_t start_string;
 	size_t end_string;
+	size_t start_code;
 	FILE* out;
 	enum processing_type type;
 	unsigned char nparens;
@@ -223,8 +229,54 @@ bool find_and_pass_parenthetical_block(struct parser* p) {
 			}
 		}
 	}
+	p->nparens = 0;
+	p->close_paren_length = 0;
 	return true;
 }
+
+static void process_code(struct parser* p, string code) {
+	FILE* out = p->out;
+	commit_string(p);
+	switch(p->type) {
+	case processing_type_UNKNOWN:
+		output_string(code);
+		break;
+	case processing_type_ESCAPED:
+		output_char('"');
+		output_escaped(code);
+		output_char('"');
+		break;
+	default:
+		switch(p->type) {
+		case processing_type_OUTPUT_LITERAL:
+			output_literal("output_literal(");
+			break;
+		case processing_type_OUTPUT_STRING:
+			output_literal("output_string(");
+			output_string(code);
+			output_literal(")");
+			break;
+		case processing_type_OUTPUT_FORMAT:
+			output_literal("output_format(");
+			break;
+		};
+		output_string(code);
+		output_literal(");"); // XXX: semicolon? do { } while(0) ?
+	};
+}
+
+void generate(FILE* out, string in, struct generate_options opt) {
+	if(opt.tag.base == NULL) {
+		opt.tag = LITSTR("ctemplate");
+	}
+	struct parser p = {
+		.out = out,
+		.in = in
+	};
+	while(pass_statement(&p, opt.tag));
+	commit_rest(&p);
+}
+
 
 bool pass_statement(struct parser* p, string tag) {
 	// return false only when no further statements can be found.
@@ -275,47 +327,4 @@ bool pass_statement(struct parser* p, string tag) {
 		p->cur = p->end_string+1;
 		return true;
 	}
-}
-
-static void process_code(struct parser* p, string code) {
-	FILE* out = p->out;
-	commit_string(p);
-	switch(p->type) {
-	case processing_type_UNKNOWN:
-		output_string(code);
-		break;
-	case processing_type_ESCAPED:
-		output_char('"');
-		output_escaped(code);
-		output_char('"');
-		break;
-	default:
-		switch(p->type) {
-		case processing_type_OUTPUT_LITERAL:
-			output_literal("output_literal(");
-			break;
-		case processing_type_OUTPUT_STRING:
-			output_literal("output_string(");
-			output_string(code);
-			output_literal(")");
-			break;
-		case processing_type_OUTPUT_FORMAT:
-			output_literal("output_format(");
-			break;
-		};
-		output_string(code);
-		output_literal(");"); // XXX: semicolon? do { } while(0) ?
-	};
-}
-
-void generate(FILE* out, string in, struct generate_options opt) {
-	if(opt.tag.base == NULL) {
-		opt.tag = LITSTR("ctemplate");
-	}
-	struct parser p = {
-		.out = out,
-		.in = in
-	};
-	while(pass_statement(&p, opt.tag));
-	commit_rest(&p);
 }
