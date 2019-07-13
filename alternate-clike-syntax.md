@@ -1,6 +1,6 @@
 So... generating C code is useful, and writing C code to generate C code is useful, and CPP sucks (you can’t #include inside macro arguments because “reasons” etc), but most text editors (cough)emacs(cough) throw a hissy fit when you mix any sort of non-C-like syntax in with C. So... how about this syntax:
 
-string tag space optional("(" type ")") space open_paren code close_paren string
+string tag space open_paren code close_paren string
 
 where tag is some "thisisctemplate_notafunction" identifier-like text, open_paren and close_paren are any of MANY opening/closing delimiters, such as
 ( and )
@@ -30,32 +30,33 @@ space = " "
 
 which would semantically become:
 string = "int bar = 23;"
-start_ctemplate_thing
+tag
 open_paren = (, /*, "
 code = " int foo = 42;"
 close_paren = ", */, )
 
-so first you look for the start_template token, and queue up the non-matching characters as a string. Then you skip any space, then check for a possible open_paren sequence of tokens. If found, you search for the matching close_paren sequence of tokens, while accounting for nested parentheticals.
+So like ctemplate((this is the parens (( and )))) would be valid, and "(( and ))" inside it would be skipped while searching for the close_paren token. 
 
-So like CTEMPDERP((this is the parens (( and )))) would be valid, and "(( and ))" inside it would be skipped while searching for the close_paren token.
+The parser should be able to be set “strict” where `ctemplate[(stuff])` fails since the opener is `[(` but there’s no closing `)]` but be by default permissive, where `ctemplate[(stuff])` evaluates to `output_literal("ctemplate[(stuff])")`. It’s important to never output `output_literal("")` because that prevents anyone from starting their file with `ctemplate {` and use `} somestring ctemplate {` to inline strings until the final `}`.
 
-If the close_paren IS found, then check between open_paren and close_paren to see if it’s a type qualifier. If so, prepare that type of code processor, then start searching for a new open_paren as above, but skip to the next instead of looking for another type qualifier.
+So first you look for the tag, and queue up the non-matching characters as a string. Then you skip any space, then check for a possible open_paren sequence of tokens. If found, you search for the matching close_paren sequence of tokens, while accounting for nested parentheticals.
 
-If the close_paren is found (maybe the second time) then commit the current string, then process everything between open_paren and close_paren as code. Start searching for start_template again after close_paren.
+If the close_paren IS found, then commit the current string, then process everything between open_paren and close_paren as code. Start searching for the tag again after close_paren.
 
-If the close_paren is not found, issue a warning, add everything from the start_template token to the end of the open_paren as a string (including space), then restart searching for a start_template token from there.
+If the close_paren is not found, either error out, or add everything from the start_template token to the end of the open_paren as a string (including space), then restart searching for a start_template token from there.
 
 "space" includes space, tab, newline, carriage return, so you could do like
 
 ```C
-const char* code = 
-  ctemplate(s) 
-  {
+CT
+{
+  const char* code = }
     int foo = 42;
 	if(bar == 23) {
 	  foo = 23;
 	}
-  };
+  CT{
+};
 ```
 
 and that’d become:
@@ -63,45 +64,143 @@ and that’d become:
 const char* code = "\n    int foo = 42;\n    if(bar == 23) {\n      foo = 23;\n    }\n";
 ```
 
-In general space between “ctemplate stuff” is skipped, while space surrounding those tokens is preserved and output and/or processed as code.
+Maybe an option to eat that trailing space? In general space between “ctemplate stuff” is skipped, while space surrounding it is preserved and output and/or stringized.
 
 Not sure if " and " are useful open_paren and close_paren tokens...
-`ctemplate(s)"why am I even using ctemplate"`
+`ctemplate"why am I even using ctemplate"`
 =>
-`"why am I even using ctemplate"
+`output_literal("why am I even using ctemplate")`
 
-Various types of ctemplate:
-no type = just output raw code
-s: turn code into a valid double quoted C string literal
-ol: output_literal(the raw code)
-of: output_format(the raw code)
-os: output_string(the raw code)
-
-the meaning of output_literal, output_format, and output_string are up to the programmer, but it’s strongly recommended to have the first one assume its code evaluates to a string literal, the second one to take a string literal as a first format argument, ala printf, and the third to assume its code evaluates to a string object. These can all be used inside the code itself of course, so
-
-`ctemplate(ol)(sometest() ? "foo" : "bar")`
-would be exactly equivalent to
-`ctemplate(output_literal(sometest() ? "foo" : "bar"))`
-or even
+The meaning of output_literal is up to the programmer, but it’s strongly recommended to have it be something like:
 ```C
-ctemplate 
-  {output_literal(sometest() ? "foo" : "bar")}
+#define output_literal(lit) fwrite(lit,sizeof(lit)-1,1,out)
 ```
+where `out` is a local variable, possibly set from a passed context, as in:
 
-That seems... really dumb, but mostly it’s for ctemplate(s), and the other types I might as well add as conveniences. Anyone who doesn’t use `of` or `os` doesn’t have to define output_format or output_string (or have any notion of a string object).
-
-Currently the () around a ctemplate type must be `(` and `)` since I can’t think of any valid reason to complicate things by having code like
 ```C
-ctemplate
-{{
-// hi there
-s{{
-}}
-}}
-
-[whyyyyy]
+CT {
+int output_one_record(struct context* ctx, struct record* rec) {
+  FILE* out = ctx->output_file;
+  }CT("""
+  the name is CT{
+  output_string(rec->name)} and the value is CT(output_string(rec->value))
+  """)CT{
+  return 42;
+}
 ```
 =>
-`"whyyyyy"`
+```C
+int output_one_record(struct context* ctx, struct record* rec) {
+  FILE* out = ctx->output_file;
+  output_literal("\n  the name is ");
+  output_string(rec->name);
+output_literal(" and the value is ");output_string(rec->value);
+output_literal("\n  ");
+  return 42;
+}
+```
 
-So only "()" around the type qualifier, no nested parentheses or whitespace inside them. Just the literal characters for each type.
+You could also define output_literal like...
+```C
+#define output_literal(lit) lit
+CT {
+	const char* code = }
+this is a literal string wheee
+CT{
+}
+```
+=>
+```C
+const char* code = "\nthis is a literal string wheee\n";
+```
+
+As a method to keep C formatters from flipping out about unclosed parentheses, have some "parentheses" like
+```
+_ / _
+OPEN / CLOSE
+CLOSE / OPEN
+START / END
+END / START
+CODE / TEMPLATE
+```
+
+and an optional `;` at the end that gets skipped.
+
+So...
+```C
+CT_CODE;
+#include "output.h"
+int main(int argc, char** argv) {
+	FILE* out = stdout;
+	TEMPLATE_;
+#define DERP "CT(fputs(argv[1],out))"
+	CT_OPEN;
+	fputs("lolidk",stderr);
+	int i;
+	CLOSE_;
+	int main(void) {
+		/* this is an unrolled for loop: */
+		CT_CODE;
+		for(i=0;i<10;++i) {
+			TEMPLATE_;
+			printf("%d\n",19+CT(printf("%d",13+i)));
+			CT_CODE;
+		}
+		TEMPLATE_;
+		fputs(DERP, stdout);
+	}
+	CT_CODE;
+}
+TEMPLATE_; // for strict mode
+```
+=>
+```C
+#include "output.h"
+int main(int argc, char** argv) {
+	FILE* out = stdout;
+	output_literal("\n#define DERP \"");
+	fputs(argv[1],out);
+	output_literal("\"\n    ");
+	fputs("lolidk",stderr);
+	int i;
+	output_literal("\n\tint main(void) {\n\t\t/* this is an unrolled for loop: */\n\t\t\t");
+		for(i=0;i<10;++i) {
+			output_literal("printf(\"%d\\n\",19+");
+printf("%d",14+i);
+output_literal(");\n\t\t\t");
+		};
+output_literal("\n\t\t\tfputs(DERP, stdout);\n\t\t}");
+}
+```
+
+Which would presumably output the program
+`./thatthing myargument`
+=>
+```C
+#define DERP "myargument"
+
+	int main(void) {
+		/* this is an unrolled for loop: */
+		printf("%d ",19+14);
+		printf("%d ",19+15);
+		printf("%d ",19+16);
+		printf("%d ",19+17);
+		printf("%d ",19+18);
+		printf("%d ",19+19);
+		printf("%d ",19+20);
+		printf("%d ",19+21);				
+		printf("%d ",19+22);
+		printf("%d ",19+23);
+		fputs(DERP, stdout);
+	}
+```
+
+...which would presumably output:
+```
+33 34 35 36 37 38 39 40 41 42 myargument
+```
+
+No “types” of ctemplate processor, it just switches between template mode `output_literal("...")` and raw mode that just copies the code verbatim. 
+
+It probably would be bad to start in raw mode, because raw mode isn’t supposed to be parsed at all, so we wouldn’t be able to search for the ctemplate tag in it. If we did that, we might as well use m4 which reveals what a nightmare it is
+when you try to output verbatim, except for XXX, rather than outputting XXX, except sometimes verbatim.

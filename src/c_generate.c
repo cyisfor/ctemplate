@@ -54,7 +54,7 @@ bool find_and_pass(struct parser* p, string needle) {
 }
 
 bool find_and_pass_char(struct parser* p, unsigned char needle) {
-	const char* s = memchr(p->in.base + p->cur, p->in.len - p->cur, needle);
+	const char* s = memchr(p->in.base + p->cur, needle, p->in.len - p->cur);
 	if(s == NULL) return false;
 	p->cur = s - p->in.base + 1;
 	return true;
@@ -275,7 +275,7 @@ bool pass_statement(struct parser* p, string tag) {
 	pass_space(p);
 	if(pass_char(p, '(')) {
 		size_t start_type = p->cur;
-		if(!pass_char(p,')')) {
+		if(!find_and_pass_char(p,')')) {
 			WARN("EOF after opening ctemplate (type) paren without closing");
 			p->end_string += tag.len;
 			p->cur = p->end_string+1;
