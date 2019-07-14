@@ -1,10 +1,10 @@
 So... generating C code is useful, and writing C code to generate C code is useful, and CPP sucks (you can’t #include inside macro arguments because “reasons” etc), but most text editors (cough)emacs(cough) throw a hissy fit when you mix any sort of non-C-like syntax in with C. 
 
-Basically what we need is lisp’s quasiquote/unquote but with a more C friendly syntax.
+Basically what we need is lisp’s quote but with a more C friendly syntax.
 
 So... how about this syntax:
 
-string tag eatspace open_paren code eatspace close_paren string
+string quote eatspace open_paren code eatspace close_paren string
 
 where tag is some "thisisctemplate_notafunction" identifier-like text, open_paren and close_paren are any of MANY opening/closing delimiters, such as
 ( and )
@@ -43,17 +43,17 @@ So like ctemplate((this is the parens (( and )))) would be valid, and "(( and ))
 
 The parser should be able to be set “strict” where `ctemplate[(stuff])` fails since the opener is `[(` but there’s no closing `)]` but be by default permissive, where `ctemplate[(stuff])` evaluates to itself.
 
-So first you look for the tag, and queue up the non-matching characters as a string. Then you skip any space, then check for a possible open_paren sequence of tokens. If found, you search for the matching close_paren sequence of tokens, while accounting for nested parentheticals.
+So first you look for the quote, and output non-matching characters as code. Then you skip any space, then check for a possible open_paren sequence of tokens. If found, you search for the matching close_paren sequence of tokens, while accounting for nested parentheticals.
 
-If the close_paren IS found, then commit the current code, then process everything between open_paren and close_paren as a double quoted escaped string around output_literal. Start searching for the tag again after close_paren.
+If the close_paren IS found, then commit the current code, then process everything between open_paren and close_paren as a double quoted escaped string around output_literal. Start searching for the quote again after close_paren.
 
-If the close_paren is not found, either error out, or add everything from the start_template token to the end of the open_paren as a string (including space), then restart searching for a start_template token from there.
+If the close_paren is not found, either error out, or add everything from the start_template token to the end of the open_paren as code (including space), then restart searching for a quote token from there.
 
 "space" includes space, tab, newline, carriage return, so you could do like
 
 ```C
 #define output_literal(lit) lit
-  const char* code = CT {
+  const char* code = Q {
     int foo = 42;
 	if(bar == 23) {
 	  foo = 23;
@@ -66,19 +66,64 @@ and that’d become:
 ```C
 const char* code = "\n    int foo = 42;\n    if(bar == 23) {\n      foo = 23;\n    }\n";
 ```
-
 Maybe an option to eat that trailing space? In general space between “ctemplate stuff” is skipped, while space surrounding it is preserved and output and/or stringized.
 
 Not sure if " and " are useful open_paren and close_paren tokens...
-`ctemplate"why am I even using ctemplate"`
+`Q"why am I even using ctemplate"`
 =>
-`output_literal("why am I even using ctemplate")`
+`"why am I even using ctemplate"`
 
-The meaning of output_literal is up to the programmer, but it’s strongly recommended to have it be something like:
+Of course `\` has to escape an unquote, so 
+`Q"this is a double quote \" character"`
+=>
+`"this is a double quote \" character"`
+not
+`"this is a double\\" character"`
+
+Even a complex close-paren like `})]>` could be escaped with `\})]>` but at that point just use a different complex close-paren, right? even `}}` is different from `}`. It would work though, even if only `}` was escaped because `)]>` won’t be the close quote.
+
+quasi-quoting is... tricky. Firstly, string literals don’t save length information when being passed to functions, secondly, number of arguments does not pass down either. But something should work like this:
+
 ```C
-#define output_literal(lit) fwrite(lit,sizeof(lit)-1,1,out)
+char buf[20];
+QQ{{this is a }}int num = 42; (string){buf, snprintf(buf, 20, "%d", num)}{{ test}}
 ```
-where `out` is a local variable, possibly set from a passed context, as in:
+=>
+```C
+char buf[20];
+quasi_quote(3, LITSTR("this is a "),
+  {
+    int num = 42; (string){buf, snprintf(buf, 20, "%d", num)};
+  },
+  LITSTR(" test"))
+```
+
+definition of LITSTR can be found in mystring.h, and the string structure too. Definition of quasi_quote would be programmer dependent, but in general I guess it should output the arguments? like
+```C
+void quasi_quote(size_t narg, ...) {
+  va_list args;
+  va_start(args, narg);
+  size_t i;
+  for(i=0;i<narg;++i) {
+    string s = va_arg(args, string);
+	fwrite(s.base, s.len, 1, stdout);
+  }
+}
+```
+
+It could also accumulate them and return a `string` so you could do uh...
+```C
+string result = QQ{...};
+```
+
+using static/#undef/#define for quasi_quote ought to help if that needs to vary.
+
+in particular, `#define quasi_quote(N, ...) quasi_quote_function(out, N, ##__VA_ARGS__)` is useful, because `FILE* out = whatevercontext->output` can be an easy local variable.
+
+ctemplate really doesn’t care, it just puts quasi_quote in, and LITSTR and hopes you defined them good. It does have to parse the quasi-quote statement twice, once to find the arguments, but it’s either that, or have an unbounded cache of integer offsets for the arguments of a quasi_quote statement.
+
+XXX: that (string){etc} stuff is messy at the end. Can make neater?
+............................
 
 ```C
 CT {

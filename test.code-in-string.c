@@ -9,7 +9,7 @@ size_t string_va_args_size(string sentinel, ...) {
 	size_t num = 0;
 	for(;;) {
 		string next = va_arg(args, string);
-		if(next == sentinel) {
+		if(next.len == sentinel.len && next.base == sentinel.base) {
 			return num;
 		}
 		++num;
@@ -17,6 +17,8 @@ size_t string_va_args_size(string sentinel, ...) {
 }
 
 void output_function(FILE* out, size_t nargs, ...) {
+	va_list args;
+	va_start(args, nargs);
 	size_t i;
 	for(i=0;i<nargs;++i) {
 		string arg = va_arg(args, string);
@@ -24,14 +26,15 @@ void output_function(FILE* out, size_t nargs, ...) {
 	}
 }
 
-string sentinel = { .base = 0x1234, .len = 0x1337 };
+string sentinel = { .base = (void*)0x1234, .len = 0x1337 };
 			   
-#define output_stuff(out, ...) { output_function(out, va_args_size(sentinel, ##__VA_ARGS__ ,sentinel), __VA_ARGS__); }
+#define output_stuff(narg, ...) { output_function(stdout, narg, __VA_ARGS__); }
 
 int main(int argc, char *argv[])
 {
 	char buf1[20];
-	output_stuff(stdout, LITSTR("this is a "),
+	output_stuff(3,
+				 LITSTR("this is a "),
 				 ({
 					 int i = 0;
 					 int sum = 0;
@@ -39,7 +42,7 @@ int main(int argc, char *argv[])
 						 sum += i;
 					 }
 			
-					 (string){buf1,snprintf(buf1,20,"%d",sum)}
+					 (string){buf1,snprintf(buf1,20,"%d",sum)};
 				 })
 				 ,LITSTR(" test"));
 	putchar('\n');
