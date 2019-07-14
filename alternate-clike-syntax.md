@@ -1,6 +1,10 @@
-So... generating C code is useful, and writing C code to generate C code is useful, and CPP sucks (you can’t #include inside macro arguments because “reasons” etc), but most text editors (cough)emacs(cough) throw a hissy fit when you mix any sort of non-C-like syntax in with C. So... how about this syntax:
+So... generating C code is useful, and writing C code to generate C code is useful, and CPP sucks (you can’t #include inside macro arguments because “reasons” etc), but most text editors (cough)emacs(cough) throw a hissy fit when you mix any sort of non-C-like syntax in with C. 
 
-string tag space open_paren code close_paren string
+Basically what we need is lisp’s quasiquote/unquote but with a more C friendly syntax.
+
+So... how about this syntax:
+
+string tag eatspace open_paren code eatspace close_paren string
 
 where tag is some "thisisctemplate_notafunction" identifier-like text, open_paren and close_paren are any of MANY opening/closing delimiters, such as
 ( and )
@@ -29,33 +33,32 @@ space = " "
 )
 
 which would semantically become:
-string = "int bar = 23;"
+code = "int bar = 23;"
 tag
 open_paren = (, /*, "
-code = " int foo = 42;"
+string = " int foo = 42;"
 close_paren = ", */, )
 
 So like ctemplate((this is the parens (( and )))) would be valid, and "(( and ))" inside it would be skipped while searching for the close_paren token. 
 
-The parser should be able to be set “strict” where `ctemplate[(stuff])` fails since the opener is `[(` but there’s no closing `)]` but be by default permissive, where `ctemplate[(stuff])` evaluates to `output_literal("ctemplate[(stuff])")`. It’s important to never output `output_literal("")` because that prevents anyone from starting their file with `ctemplate {` and use `} somestring ctemplate {` to inline strings until the final `}`.
+The parser should be able to be set “strict” where `ctemplate[(stuff])` fails since the opener is `[(` but there’s no closing `)]` but be by default permissive, where `ctemplate[(stuff])` evaluates to itself.
 
 So first you look for the tag, and queue up the non-matching characters as a string. Then you skip any space, then check for a possible open_paren sequence of tokens. If found, you search for the matching close_paren sequence of tokens, while accounting for nested parentheticals.
 
-If the close_paren IS found, then commit the current string, then process everything between open_paren and close_paren as code. Start searching for the tag again after close_paren.
+If the close_paren IS found, then commit the current code, then process everything between open_paren and close_paren as a double quoted escaped string around output_literal. Start searching for the tag again after close_paren.
 
 If the close_paren is not found, either error out, or add everything from the start_template token to the end of the open_paren as a string (including space), then restart searching for a start_template token from there.
 
 "space" includes space, tab, newline, carriage return, so you could do like
 
 ```C
-CT
-{
-  const char* code = }
+#define output_literal(lit) lit
+  const char* code = CT {
     int foo = 42;
 	if(bar == 23) {
 	  foo = 23;
 	}
-  CT{
+  };
 };
 ```
 
@@ -128,30 +131,31 @@ and an optional `;` at the end that gets skipped.
 
 So...
 ```C
-CT_CODE;
 #include "output.h"
 int main(int argc, char** argv) {
 	FILE* out = stdout;
-	TEMPLATE_;
+	CT_TEMPLATE;
 #define DERP "CT(fputs(argv[1],out))"
-	CT_OPEN;
+	CODE_;
 	fputs("lolidk",stderr);
 	int i;
-	CLOSE_;
-	int main(void) {
-		/* this is an unrolled for loop: */
-		CT_CODE;
-		for(i=0;i<10;++i) {
-			TEMPLATE_;
-			printf("%d\n",19+CT(printf("%d",13+i)));
-			CT_CODE;
+	CT_TEMPLATE;
+int main(void) {
+	/* this is an unrolled for loop: */
+CODE_;
+	for(i=0;i<10;++i) {
+		CT {
+		printf("%d\n",19+CT(printf("%d",13+i)));
 		}
-		TEMPLATE_;
-		fputs(DERP, stdout);
 	}
-	CT_CODE;
+	CT {
+	fputs(DERP, stdout);
+	}
+	CT_TEMPLATE;
 }
-TEMPLATE_; // for strict mode
+CODE_;
+}
+
 ```
 =>
 ```C
@@ -160,10 +164,11 @@ int main(int argc, char** argv) {
 	FILE* out = stdout;
 	output_literal("\n#define DERP \"");
 	fputs(argv[1],out);
-	output_literal("\"\n    ");
+	output_literal("\"\n\t");
 	fputs("lolidk",stderr);
 	int i;
-	output_literal("\n\tint main(void) {\n\t\t/* this is an unrolled for loop: */\n\t\t\t");
+	mehhhhhhhhhhh do we delete the trailing whitespace or not?
+	output_literal("\nint main(void) {\n\t/* this is an unrolled for loop: */\n");
 		for(i=0;i<10;++i) {
 			output_literal("printf(\"%d\\n\",19+");
 printf("%d",14+i);
