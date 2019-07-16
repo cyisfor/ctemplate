@@ -6,7 +6,7 @@ So... how about this syntax:
 
 string quote eatspace open_paren code eatspace close_paren string
 
-where tag is some "thisisctemplate_notafunction" identifier-like text, open_paren and close_paren are any of MANY opening/closing delimiters, such as
+where quote is some "thisisctemplate_notafunction" identifier-like text, open_paren and close_paren are any of MANY opening/closing delimiters, such as
 ( and )
 (( and ))
 { and }
@@ -64,9 +64,9 @@ If the close_paren is not found, either error out, or add everything from the st
 
 and that’d become:
 ```C
-const char* code = "\n    int foo = 42;\n    if(bar == 23) {\n      foo = 23;\n    }\n";
+const char* code = "int foo = 42;\n  if(bar == 23) {\n    foo = 23;\n  }";
 ```
-Maybe an option to eat that trailing space? In general space between “ctemplate stuff” is skipped, while space surrounding it is preserved and output and/or stringized.
+In general, trailing and leading space is removed. Space indenting the line with “Q” is removed from each line within the quote. All unquoted space is preserved verbatim. 
 
 Not sure if " and " are useful open_paren and close_paren tokens...
 `Q"why am I even using ctemplate"`
@@ -100,6 +100,8 @@ quasi_quote(3, LITSTR("this is a "),
 
 definition of LITSTR can be found in mystring.h, and the string structure too. Definition of quasi_quote would be programmer dependent, but in general I guess it should output the arguments? like
 ```C
+#include <stdarg.h>
+#include <stdio.h>
 void quasi_quote(size_t narg, ...) {
   va_list args;
   va_start(args, narg);
@@ -120,7 +122,7 @@ using static/#undef/#define for quasi_quote ought to help if that needs to vary.
 
 in particular, `#define quasi_quote(N, ...) quasi_quote_function(out, N, ##__VA_ARGS__)` is useful, because `FILE* out = whatevercontext->output` can be an easy local variable.
 
-ctemplate really doesn’t care, it just puts quasi_quote in, and LITSTR and hopes you defined them good. It does have to parse the quasi-quote statement twice, once to find the arguments, but it’s either that, or have an unbounded cache of integer offsets for the arguments of a quasi_quote statement.
+ctemplate really doesn’t care, it just puts quasi_quote in, and LITSTR and hopes you defined them good. It does have to parse the quasi-quote statement twice, once to count the arguments, but it’s either that, or have an unbounded cache of integer offsets for the arguments of a quasi_quote statement.
 
 XXX: that (string){etc} stuff is messy at the end. Can make neater?
 ............................
