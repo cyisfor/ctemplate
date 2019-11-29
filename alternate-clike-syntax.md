@@ -19,10 +19,10 @@ where quote is some "thisisctemplate_notafunction" identifier-like text, open_pa
 
 and so on. So for every token in open_paren, there's a lookup table mapping to the corresponding token in close_paren, and only a sequence of those mapped tokens counts as the close_paren for a given open_paren.
 
-int bar = 23; ctemplate (/*" int foo = 42;"*/) would tokenize to
+int bar = 23; Q (/*" int foo = 42;"*/) would tokenize to
 
 "int bar = 23; "
-ctemplate
+Q
 space = " "
 (
 /*
@@ -39,9 +39,44 @@ open_paren = (, /*, "
 string = " int foo = 42;"
 close_paren = ", */, )
 
-So like ctemplate((this is the parens (( and )))) would be valid, and "(( and ))" inside it would be skipped while searching for the close_paren token. 
+So like Q((this is the parens (( and )))) would be valid, and "(( and ))" inside it would be skipped while searching for the close_paren token. 
 
-The parser should be able to be set “strict” where `ctemplate[(stuff])` fails since the opener is `[(` but there’s no closing `)]` but be by default permissive, where `ctemplate[(stuff])` evaluates to itself.
+The parser should be able to be set “strict” where `Q[(stuff])` fails since the opener is `[(` but there’s no closing `)]` but be by default permissive, where `Q[(stuff])` evaluates to itself.
+
+The tag should be identifier-y, so stuff like `abcdQ(something)` would not result in quoting something. `abcd Q(something)` would work anyway, because trailing space after abcd is removed.
+
+Track indentation by `{}` characters? A `{` can be followed by a newline and increasing the indent. A `}` decreases the indent, and can be preceded by a newline after doing so, and followed by a newline.
+
+Indentation inside quoted text is tracked based on the outermost quote. So `abcd { efg { Q { hij { klm } } Q{nop} } qrs } tuv` could become:
+```C
+abcd {
+	efg {
+		"hij {\n\tklm\n}\n"
+		"nop"
+	}
+	qrs
+}
+tuv
+```
+
+So the indent of the raw code is 2 at “hij” but the indent within the quoted text is 0.
+
+`abcd { Q { efg { hij } Q { { klm Q({ KLM }) } noop Q { qrs } } } } tuv`
+=>
+```C
+abcd {
+	"efg {\n\thij\n}\n" {
+		klm
+		"{\n\t\tKLM\n\t}\n"
+	}
+	noop
+	"qrs"
+}
+tuv
+```
+
+
+uhhhhhhhhhhhh
 
 So first you look for the quote, and output non-matching characters as code. Then you skip any space, then check for a possible open_paren sequence of tokens. If found, you search for the matching close_paren sequence of tokens, while accounting for nested parentheticals.
 
@@ -64,9 +99,9 @@ If the close_paren is not found, either error out, or add everything from the st
 
 and that’d become:
 ```C
-const char* code = "int foo = 42;\n  if(bar == 23) {\n    foo = 23;\n  }";
+const char* code = output_literal("int foo = 42;\n  if(bar == 23) {\n    foo = 23;\n  }");
 ```
-In general, trailing and leading space is removed. Space indenting the line with “Q” is removed from each line within the quote. All unquoted space is preserved verbatim. 
+In general, trailing and leading space is removed. Space indenting the line after “Q” is removed from each line within the quote. All other unquoted space is preserved verbatim. 
 
 Not sure if " and " are useful open_paren and close_paren tokens...
 `Q"why am I even using ctemplate"`
@@ -82,87 +117,11 @@ not
 
 Even a complex close-paren like `})]>` could be escaped with `\})]>` but at that point just use a different complex close-paren, right? even `}}` is different from `}`. It would work though, even if only `}` was escaped because `)]>` won’t be the close quote.
 
-quasi-quoting is... tricky. Firstly, string literals don’t save length information when being passed to functions, secondly, number of arguments does not pass down either. But something should work like this:
+quasi-quoting is... tricky. Firstly, string literals don’t save length information when being passed to functions, secondly, number of arguments does not pass down either. In general, just unquote/quote to put quasi-stuff inside. 
 
-```C
-char buf[20];
-QQ{{this is a }}int num = 42; (string){buf, snprintf(buf, 20, "%d", num)}{{ test}}
-```
+TODO: have `QQ{{this is a {{"quasi-quote"}} syntax that has the {{"first"}} level of nested parentheses act as an un-quote}}`
 =>
-```C
-char buf[20];
-quasi_quote(3, LITSTR("this is a "),
-  {
-    int num = 42; (string){buf, snprintf(buf, 20, "%d", num)};
-  },
-  LITSTR(" test"))
-```
-
-definition of LITSTR can be found in mystring.h, and the string structure too. Definition of quasi_quote would be programmer dependent, but in general I guess it should output the arguments? like
-```C
-#include <stdarg.h>
-#include <stdio.h>
-void quasi_quote(size_t narg, ...) {
-  va_list args;
-  va_start(args, narg);
-  size_t i;
-  for(i=0;i<narg;++i) {
-    string s = va_arg(args, string);
-	fwrite(s.base, s.len, 1, stdout);
-  }
-}
-```
-
-It could also accumulate them and return a `string` so you could do uh...
-```C
-string result = QQ{...};
-```
-
-using static/#undef/#define for quasi_quote ought to help if that needs to vary.
-
-in particular, `#define quasi_quote(N, ...) quasi_quote_function(out, N, ##__VA_ARGS__)` is useful, because `FILE* out = whatevercontext->output` can be an easy local variable.
-
-ctemplate really doesn’t care, it just puts quasi_quote in, and LITSTR and hopes you defined them good. It does have to parse the quasi-quote statement twice, once to count the arguments, but it’s either that, or have an unbounded cache of integer offsets for the arguments of a quasi_quote statement.
-
-XXX: that (string){etc} stuff is messy at the end. Can make neater?
-............................
-
-```C
-CT {
-int output_one_record(struct context* ctx, struct record* rec) {
-  FILE* out = ctx->output_file;
-  }CT("""
-  the name is CT{
-  output_string(rec->name)} and the value is CT(output_string(rec->value))
-  """)CT{
-  return 42;
-}
-```
-=>
-```C
-int output_one_record(struct context* ctx, struct record* rec) {
-  FILE* out = ctx->output_file;
-  output_literal("\n  the name is ");
-  output_string(rec->name);
-output_literal(" and the value is ");output_string(rec->value);
-output_literal("\n  ");
-  return 42;
-}
-```
-
-You could also define output_literal like...
-```C
-#define output_literal(lit) lit
-CT {
-	const char* code = }
-this is a literal string wheee
-CT{
-}
-```
-=>
-```C
-const char* code = "\nthis is a literal string wheee\n";
-```
+`output_literal("this is a ") "quasi-quote" output_literal(" syntax that has the ") "first" output_literal(" level of nested parentheses act as an un-quote")`
 
 As a method to keep C formatters from flipping out about unclosed parentheses, have some "parentheses" like
 ```
@@ -174,54 +133,55 @@ END / START
 CODE / TEMPLATE
 ```
 
-and an optional `;` at the end that gets skipped.
+and an optional `;` at the end of open OR close that gets skipped.
 
 So...
 ```C
 #include "output.h"
 int main(int argc, char** argv) {
 	FILE* out = stdout;
-	CT_TEMPLATE;
-#define DERP "CT(fputs(argv[1],out))"
-	CODE_;
+#define output_literal(lit) fwrite(lit,sizeof(lit)-1,1,out)
+    Q {
+#include <stdio.h>	
+#define DERP "Q(fputs(argv[1],out))"
+	}; 
 	fputs("lolidk",stderr);
 	int i;
-	CT_TEMPLATE;
-int main(void) {
-	/* this is an unrolled for loop: */
-CODE_;
-	for(i=0;i<10;++i) {
-		CT {
-		printf("%d\n",19+CT(printf("%d",13+i)));
+	Q {
+	int main(void) {
+		/* this is an unrolled for loop: */
+		Q {
+			for(i=1;i&lt;=10;++i) {
+				Q {
+					printf("%d\n",19+Q(printf("%d",13+i)));
+				}
+			}
 		}
+		fputs(DERP, stdout);
+		return 0;
 	}
-	CT {
-	fputs(DERP, stdout);
 	}
-	CT_TEMPLATE;
+	return 0;
 }
-CODE_;
-}
-
 ```
 =>
 ```C
 #include "output.h"
 int main(int argc, char** argv) {
 	FILE* out = stdout;
-	output_literal("\n#define DERP \"");
-	fputs(argv[1],out);
-	output_literal("\"\n\t");
+#define output_literal(lit) fwrite(lit,sizeof(lit)-1,1,out)
+	output_literal("#define DERP \""); 
+	fputs(args[1],out);
+	output_literal("\"\n");
 	fputs("lolidk",stderr);
 	int i;
-	mehhhhhhhhhhh do we delete the trailing whitespace or not?
-	output_literal("\nint main(void) {\n\t/* this is an unrolled for loop: */\n");
-		for(i=0;i<10;++i) {
-			output_literal("printf(\"%d\\n\",19+");
-printf("%d",14+i);
-output_literal(");\n\t\t\t");
-		};
-output_literal("\n\t\t\tfputs(DERP, stdout);\n\t\t}");
+	output_literal("int main(void) {\n\t/* this is an unrolled for loop: */\n");
+	for(i=1;i&lt;=10;++i) {
+		output_literal("\tprintf(\"%d \",19+");");
+		printf("%d",13+i);
+		output_literal(");\n");
+	}
+	output_literal("\tfputs(DERP, stdout);\n}\n");
 }
 ```
 
@@ -229,22 +189,23 @@ Which would presumably output the program
 `./thatthing myargument`
 =>
 ```C
+#include <stdio.h>
 #define DERP "myargument"
 
-	int main(void) {
-		/* this is an unrolled for loop: */
-		printf("%d ",19+14);
-		printf("%d ",19+15);
-		printf("%d ",19+16);
-		printf("%d ",19+17);
-		printf("%d ",19+18);
-		printf("%d ",19+19);
-		printf("%d ",19+20);
-		printf("%d ",19+21);				
-		printf("%d ",19+22);
-		printf("%d ",19+23);
-		fputs(DERP, stdout);
-	}
+int main(void) {
+	/* this is an unrolled for loop: */
+	printf("%d ",19+14);
+	printf("%d ",19+15);
+	printf("%d ",19+16);
+	printf("%d ",19+17);
+	printf("%d ",19+18);
+	printf("%d ",19+19);
+	printf("%d ",19+20);
+	printf("%d ",19+21);				
+	printf("%d ",19+22);
+	printf("%d ",19+23);
+	fputs(DERP, stdout);
+}
 ```
 
 ...which would presumably output:
@@ -252,7 +213,59 @@ Which would presumably output the program
 33 34 35 36 37 38 39 40 41 42 myargument
 ```
 
-No “types” of ctemplate processor, it just switches between template mode `output_literal("...")` and raw mode that just copies the code verbatim. 
+Soooo...
+
+```
+(tabs A)(code1)Q(space)(open quote)(space)
+(tabs B)(nonspace-characters)Q(space)(open-quote2)(space)(code2)(space)(close-quote2)
+(tabs B)(tabs C)(more nonspace characters)
+(tabs A)(close quote)
+```
+=>
+```
+(tabs A)(code1)output_literal("(nonspace-characters)\n");(code2)
+(tabs A)output_literal("(tabs C)(more nonspace characters)\n")
+```
+
+So parse line by line, but keep a stack of nested blocks, marking the ones that end a Q section specially, so that they can change the output method. Anything inside a Q block is cached up to the first inner Q block, or the close bracket, then output as an `output_literal(...)`. Anything else is copied verbatim, code to code. Anything inside an inner Q block is copied verbatim, then when the block closes, it starts a new `output_literal()` thingy.
+
+And of course “tokens” (Q, open quote, close quote) can’t have embedded newlines. Should be able to write Q and then a newline though.
+
+So raw mode, output literally until find Q. Then maybe quote mode.
+maybe quote mode, save up until non-space or open-paren.
+- raw mode
+  - output literally
+  - if Q, set Q found, start looking for non-space
+- looking for non-space:
+  - save space
+  - newline counts as space
+  - if open-paren, 
+    - push raw mode
+    - go to looking-for-first-tab mode
+	- remember tabs of current line for outputting literally
+  - if non-space:
+    - cancel mode switch
+	- output Q then space then non-space
+	- unset Q found
+	- go back to raw mode
+- looking-for-first-tab mode, do common quote mode stuff, otherwise:
+  - remember tabs of current line
+	- go to quoted mode
+- common quote mode stuff:
+  - if open quote with no Q, increase nesting level but change no mode
+  - nesting level is just to let open/close quotes match, instead of not allowing close quotes
+  - if Q, set Q found, start looking for non-space
+- quoted mode:
+  - do common quote mode stuff
+  
+
+When beginning a Q block, keep parsing by line, find the tabs until the first non-tab character, and remove those from each line. Then output the result of that as an `output_literal()` thingy. 
+
+
+
+No “types” of ctemplate processor, it just switches between template mode `Q("...")` and raw mode that just copies the code verbatim. 
 
 It probably would be bad to start in raw mode, because raw mode isn’t supposed to be parsed at all, so we wouldn’t be able to search for the ctemplate tag in it. If we did that, we might as well use m4 which reveals what a nightmare it is
 when you try to output verbatim, except for XXX, rather than outputting XXX, except sometimes verbatim.
+
+TODO: switch between starting in raw or starting in quoted mode?
