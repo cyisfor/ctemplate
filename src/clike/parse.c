@@ -1,17 +1,3 @@
-enum paren_type {
-	PARENTHESES,
-	SQUARE_BRACKET,
-	ANGLE_BRACKET,
-	CURLY_BRACKET,
-	UNDERSCORE,
-	SINGLE_QUOTE,
-	DOUBLE_QUOTE,
-	/* XXX: need special logic so Q { OPEN; derp CLOSE; } becomes OPEN; derp CLOSE; instead of considering OPEN/CLOSE part of the parentetical */
-	OPEN_CLOSE,
-	START_END,
-	CODE_TEMPLATE
-};
-
 /* as we output substituted output_literal statements, track the current line length, and auto-
  newline and outer-indent when it gets too long, INCLUDING within the quoted string!
 
@@ -60,8 +46,8 @@ const string token_name(enum token_type type) {
 	};
 }
 
-
-bool find(struct parser* p, string needle) {
+bool find(struct parser* p, enum token_type tok) {
+	const string needle = token_name(tok);
 	const char* res = memmem(
 		p->data + p->cur,
 		p->len - p->cur,
@@ -83,14 +69,95 @@ bool pass(struct parser* p, enum token_type tok) {
 	return false;
 }
 
+int savepoint(struct parser* p) {
+	return p->cur;
+}
 
+void restore(struct parser* p, int savepoint) {
+	p->cur = savepoint;
+}
+
+struct paren {
+	enum token_type *tokens;
+	int ntokens;
+};
+
+struct paren_stack {
+	struct paren* levels;
+	int size;
+};
+
+void free_par(struct paren_stack par) {
+	int i;
+	for(i=0;i<par.levels;++i) {
+		g_free(par.levels[i].tokens);
+	};
+	g_slice_free1(sizeof(*par.levels) * par.size, par.levels);
+}
+
+void template_parse(struct parser* p, struct paren* par) {
+	int save = savepoint(p);
+	if(
+
+bool start_template(struct parser* p, enum token_type tok) {
+	if(done(p)) return false;
+	/* need to find all the tokens in open paren thingy */
+	struct paren_stack par = {
+		.levels = g_slice_new(struct paren);
+		.size = 0;
+	};
+	par.levels[0].tokens = g_new(enum token_type, 1);
+	par.levels[0].ntokens = 1;
+
+	par.levels[0].tokens[0] = tok;
+
+	for(;;) {
+		eat_space(p);
+		if(done(p)) {
+			free_par(par);
+			return false;
+		}
+#define ONLY_PARENS
+#define X(tok, val) if(pass(p, tok)) { \
+			++p.levels[0].ntokens;						\
+			g_renew(p.levels[0].tokens, p.levels[0].ntokens); \
+			p.levels[0].tokens[p.levels[0].ntokens-1] = tok; \
+			continue; \
+		}
+#include "for_tokens.snippet.h"
+		
+		bool ret = template_parse(p, &par);
+		free_par(par);
+
+		return ret;
+	}
 
 void raw_parse(struct parser* p) {
-	if(pass(p, TOKEN_Q)
+	void finish(void) {
+		output_literal(
+			p->out,
+			p->data + p->cur,
+			p->len - p->cur);
+		p->cur = p->len;
+	}
+	
+	int save = savepoint(p);
+	if(!find(p, TOKEN_Q)) {
+		finish();
+		return;
+	}
+	eat_space(p);
+#define ONLY_PARENS
+#define X(ident, val) if(pass(p, TOKEN_ ## ident)) { if(start_template(p, TOKEN_ ## ident)) return; }
+#include "for_tokens.snippet.h"
+#endif
+	restore(p, save);
+	finish();
+}
 
 void root_parse(struct parser* p) {
-	if(p->start_mode == STRIFY) {
-		strify_parse(p);
+	if(p->start_mode == TEMPLATE) {
+		template_parse(p);
 	} else {
 		raw_parse(p);
 	}
