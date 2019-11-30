@@ -1,0 +1,9 @@
+P(PAREN, "(",")") COMMA 
+P(BRACKET, "[","]") COMMA
+P(ANGLE_BRACKET, "<", ">") COMMA
+P(BRACE, "{", "}") COMMA
+P(OPEN_CLOSE, "OPEN", "CLOSE") COMMA
+P(START_END, "START", "END") COMMA
+P(CODE_TEMPLATE, "CODE", "TEMPLATE")
+// undef COMMA?
+#undef P
