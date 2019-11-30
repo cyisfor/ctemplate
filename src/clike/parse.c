@@ -77,14 +77,17 @@ void restore(struct parser* p, int savepoint) {
 	p->cur = savepoint;
 }
 
-struct paren {
-	enum token_type *tokens;
-	int ntokens;
-};
+/*
+Note: Q {{({( a} b} c} d} )})}} should become " a } b} c} d} "
+so ONLY "{{({(" can increase the depth, and we don't have to search for many possible
+token sequences.
 
+ */
 struct paren_stack {
-	struct paren* levels;
+	enum token_type* open;
+	enum token_type* close;
 	int size;
+	int depth;
 };
 
 void free_par(struct paren_stack par) {
@@ -95,8 +98,56 @@ void free_par(struct paren_stack par) {
 	g_slice_free1(sizeof(*par.levels) * par.size, par.levels);
 }
 
-void template_parse(struct parser* p, struct paren* par) {
+bool template_parse(struct parser* p, struct paren* par) {
 	int save = savepoint(p);
+	for(;;) {
+		if(pass_token_sequence(p, par->open, par->size)) {
+			++par->depth;
+		} else if(pass_token_sequence(p, par->close, par->size)) {
+			if(par->depth == 0) return true;
+			--par->depth;
+		} else {
+			// non-parenthetical stuff, but may find next parenthetical!
+			int savederp = savepoint(p);
+			bool a = find_and_pass_token_sequence(p, par->open, par->size);
+			int savea = savepoint(p);
+			restore(p, savederp);
+			bool b = find_and_pass_token_sequence(p, par->close, par->size);
+			int saveb = savepoint(p);
+			if(!b) {
+				/* unbalanced parentheses! */
+				restore(p, save);
+				return false;
+			}
+			if(a) {
+				if(savea < saveb) {
+					/* a 1... ( 2... ) situation. Unfortunately 1... may be ((( so (((()))) would give us "(((()"
+					   between the first open and first close. So have to just start parsing ++--level
+					   at the lowest one.
+					   We know there's no ) in 1... so we can skip that at least.
+					*/
+					++par->depth;
+					restore(p, savea);
+				} else {
+					/* a 1... ) 2... ( situation. May end the parsing. Also we know 1... doesn't contain ( */
+					/* we're already at saveb, no need to restore */
+					if(par->depth == 0) {
+						/* start parsing after the ), have to parse the ( twice... */
+						return true;
+					}
+					--par->depth;
+				}
+			} else {
+				/* we're already past saveb */
+				if(par->depth == 0) return true;
+				--par->depth;
+			}
+		}
+	}
+}
+
+#define P(tok, open, close) if(pass(p, TOKEN_ ## tok)) { start_new_par(par, TOKEN_ ## tok); search_for_more_parens_
+		forward(p, 1);
 	if(
 
 bool start_template(struct parser* p, enum token_type tok) {
@@ -117,15 +168,14 @@ bool start_template(struct parser* p, enum token_type tok) {
 			free_par(par);
 			return false;
 		}
-#define ONLY_PARENS
-#define X(tok, val) if(pass(p, tok)) { \
+#define P(tok, open, close) if(pass(p, TOKEN_ ## tok)) { \
 			++p.levels[0].ntokens;						\
 			g_renew(p.levels[0].tokens, p.levels[0].ntokens); \
-			p.levels[0].tokens[p.levels[0].ntokens-1] = tok; \
+			p.levels[0].tokens[p.levels[0].ntokens-1] = TOKEN_ ## tok; \
 			continue; \
 		}
-#include "for_tokens.snippet.h"
-		
+#include "for_parens.snippet.h"
+
 		bool ret = template_parse(p, &par);
 		free_par(par);
 
@@ -140,7 +190,7 @@ void raw_parse(struct parser* p) {
 			p->len - p->cur);
 		p->cur = p->len;
 	}
-	
+
 	int save = savepoint(p);
 	if(!find(p, TOKEN_Q)) {
 		finish();
@@ -162,4 +212,3 @@ void root_parse(struct parser* p) {
 		raw_parse(p);
 	}
 }
-	
