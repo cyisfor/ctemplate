@@ -48,14 +48,69 @@ const string token_name(enum token_type type) {
 
 bool find(struct parser* p, enum token_type tok) {
 	const string needle = token_name(tok);
-	const char* res = memmem(
-		p->data + p->cur,
-		p->len - p->cur,
-		needle.base, needle.len);
-	if(res == NULL) return false;
-	p->cur = res - p->data;
+	const char* res;
+	int additional = 0;
+	if(needle.len == 1) {
+		res = memchr(p->data + p->cur,
+					 *needle.base,
+					 p->len - p->cur);
+		if(res == NULL) return false;
+	} else {
+		res = memmem(
+			p->data + p->cur,
+			p->len - p->cur,
+			needle.base, needle.len);
+		if(res == NULL) return false;
+		/* if it's a multi-character token, then there must be non-alphanumeric stuff on either side
+		   that way Q { STARTLED FRIEND  } won't parse to Q { START LED FRI END } and
+		   "LED FRI"
+		   TODO: replace isalnum w/ custom function that also does _, -, ., etc...
+		   XXX: UTF-8 characters count as non-alnum, so... should it be non-non-alnum?
+		   Like space + some punctuation and everything else can't split?
+
+		   In any case single character tokens are all brackets, so they don't make sense to worry
+		   about what's around them.
+		 */
+		if(res > p->data && isalnum(res[-1])) return false;
+		if(res < p->data + p->len) {
+			if(isalnum(res[needle.len])) return false;
+			if(res[needle.len] == ';' || res[needle.len] == ':') {
+				/* OPEN; is the same as OPEN */
+				additional = 1;
+			}
+		}
+	}
+	p->cur = res - p->data + additional;
 	return true;
 }
+
+bool find_and_pass(struct parser* p, enum token_type tok) {
+	bool ret = find(p, tok);
+	if(ret) {
+		const string val = token_name(tok);
+		incr(p, val.len);
+		return true;
+	}
+	return false;
+}
+
+bool find_and_pass_token_sequence(struct parser* p, enum token_type* tok, int num) {
+	int i;
+	int save = savepoint(p);
+	for(i=0;i<num;++i) {
+		/* XXX:
+		   but 
+		 */
+		eat_space(p);
+		if(!find_and_pass(p, tok[i])) {
+			restore(p, save);
+			return false;
+		}
+	}
+	eat_space(p);
+	return true;
+}
+	
 
 bool pass(struct parser* p, enum token_type tok) {
 	const string what = token_name(tok);
