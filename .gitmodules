@@ -1,6 +1,3 @@
-[submodule "cstuff"]
-	path = cstuff
-	url = /home/repo/cstuff
 [submodule "note"]
 	path = note
 	url = /home/repo/note
