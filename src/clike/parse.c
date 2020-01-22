@@ -9,13 +9,14 @@
    "55555555555") bar
 */
 struct paren {
-	int num;
-	enum paren_type seq[];
+
 };
 
 struct parser {
 	int outer_indent;
 	int inner_indent;
+	byte* data;
+	int len;
 };
 
 /* search forward for next interesting thing
@@ -75,13 +76,19 @@ bool find(struct parser* p, enum token_type tok) {
 		if(res < p->data + p->len) {
 			if(isalnum(res[needle.len])) return false;
 			if(res[needle.len] == ';' || res[needle.len] == ':') {
-				/* OPEN; is the same as OPEN */
+				/* OPEN; is the same as OPEN
+				 that's to help auto-indenting editors not throw a hissy fit*/
 				additional = 1;
 			}
 		}
 	}
 	p->cur = res - p->data + additional;
 	return true;
+}
+
+void incr(struct parser* p, int len) {
+	assert(p->len - p->cur >= len);
+	p->cur += len;
 }
 
 bool find_and_pass(struct parser* p, enum token_type tok) {
@@ -93,6 +100,16 @@ bool find_and_pass(struct parser* p, enum token_type tok) {
 	}
 	return false;
 }
+
+
+int savepoint(struct parser* p) {
+	return p->cur;
+}
+
+void restore(struct parser* p, int savepoint) {
+	p->cur = savepoint;
+}
+
 
 bool find_and_pass_token_sequence(struct parser* p, enum token_type* tok, int num) {
 	int i;
@@ -118,18 +135,21 @@ bool pass(struct parser* p, enum token_type tok) {
 		   p->data + p->cur,
 		   p->len - p->cur,
 		   what.base, what.len)) {
-		p->cur += what.len;
+		incr(p, what.len);
 		return true;
 	}
 	return false;
 }
 
-int savepoint(struct parser* p) {
-	return p->cur;
-}
-
-void restore(struct parser* p, int savepoint) {
-	p->cur = savepoint;
+bool pass_token_sequence(struct parser* p, enum token_type* tok, int num) {
+	int save = savepoint(p);
+	for(i=0;i<num;++i) {
+		if(!pass(p, tok[i])) {
+			restore(p, save);
+			return false;
+		}
+	}
+	return true;
 }
 
 /*
@@ -153,15 +173,29 @@ void free_par(struct paren_stack par) {
 	g_slice_free1(sizeof(*par.levels) * par.size, par.levels);
 }
 
+void check_after_Q(struct parser* p) {
+	eat_space(p);
+	/* XXX: must check after Q to switch to template mode
+	 BUT also if in template mode, back to raw mode!
+	*/
+#define P(ident, open, close) if(pass(p, TOKEN_ ## ident)) { if(start_template(p, TOKEN_ ## ident)) return; }
+#include "for_tokens.snippet.h"
+#endif	
+
 bool template_parse(struct parser* p, struct paren* par) {
 	int save = savepoint(p);
 	for(;;) {
 		if(pass_token_sequence(p, par->open, par->size)) {
+			++p->inner_indent;
 			++par->depth;
 		} else if(pass_token_sequence(p, par->close, par->size)) {
 			if(par->depth == 0) return true;
+			--p->inner_indent;
 			--par->depth;
 		} else {
+			if(pass(p, TOKEN_Q)) {
+				
+			}
 			// non-parenthetical stuff, but may find next parenthetical!
 			int savederp = savepoint(p);
 			bool a = find_and_pass_token_sequence(p, par->open, par->size);
@@ -181,6 +215,7 @@ bool template_parse(struct parser* p, struct paren* par) {
 					   at the lowest one.
 					   We know there's no ) in 1... so we can skip that at least.
 					*/
+					++p->inner_indent;
 					++par->depth;
 					restore(p, savea);
 				} else {
@@ -190,11 +225,13 @@ bool template_parse(struct parser* p, struct paren* par) {
 						/* start parsing after the ), have to parse the ( twice... */
 						return true;
 					}
+					--p->inner_indent;
 					--par->depth;
 				}
 			} else {
 				/* we're already past saveb */
 				if(par->depth == 0) return true;
+				--p->inner_indent;
 				--par->depth;
 			}
 		}
@@ -247,15 +284,11 @@ void raw_parse(struct parser* p) {
 	}
 
 	int save = savepoint(p);
-	if(!find(p, TOKEN_Q)) {
+	if(!find_and_pass(p, TOKEN_Q)) {
 		finish();
 		return;
 	}
-	eat_space(p);
-#define ONLY_PARENS
-#define X(ident, val) if(pass(p, TOKEN_ ## ident)) { if(start_template(p, TOKEN_ ## ident)) return; }
-#include "for_tokens.snippet.h"
-#endif
+	check_after_Q(p);
 	restore(p, save);
 	finish();
 }

@@ -1,9 +1,9 @@
 [submodule "cstuff"]
 	path = cstuff
-	url = https://github.com/cyisfor/cstuff.git
+	url = /home/repo/cstuff
 [submodule "note"]
 	path = note
-	url = git://github.com/cyisfor/note.git
+	url = /home/repo/note
 [submodule "str_to_enum_trie"]
 	path = str_to_enum_trie
-	url = git://github.com/cyisfor/str_to_enum_trie.git
+	url = /home/repo/str_to_enum_trie
