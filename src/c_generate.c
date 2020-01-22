@@ -4,7 +4,8 @@
 #include "c_generate.h"
 #include "internal_output.h"
 #include "processing_type.h"
-#include "note.h"
+
+#include "record.h"
 
 #include "mystring.h"
 #include <string.h> // memmem
@@ -46,7 +47,7 @@ struct parser {
 };
 
 bool find_and_pass(struct parser* p, string needle) {
-	const char* s = memmem(p->in.base + p->cur, p->in.len - p->cur,
+	const byte* s = memmem(p->in.base + p->cur, p->in.len - p->cur,
 									needle.base, needle.len);
 	if(s == NULL) return false;
 	p->cur = (s - p->in.base) + needle.len;
@@ -54,7 +55,7 @@ bool find_and_pass(struct parser* p, string needle) {
 }
 
 bool find_and_pass_char(struct parser* p, unsigned char needle) {
-	const char* s = memchr(p->in.base + p->cur, needle, p->in.len - p->cur);
+	const byte* s = memchr(p->in.base + p->cur, needle, p->in.len - p->cur);
 	if(s == NULL) return false;
 	p->cur = s - p->in.base + 1;
 	return true;
@@ -173,7 +174,7 @@ bool finish_paren(struct parser* p, enum paren_direction direction) {
 
 bool find_and_pass_parenthetical_block(struct parser* p) {
 	if(p->nparens == 0) {
-		ERROR("no parens exist to close?");
+		record(ERROR, "no parens exist to close?");
 	}
 	size_t oldcur = p->cur;
 	bool open_found = find_and_pass_first_paren(p, p->parens[0], OPEN_PAREN);
@@ -221,7 +222,7 @@ bool find_and_pass_parenthetical_block(struct parser* p) {
 			}
 		} else if(open_found) {
 			// !close_found
-			ERROR("unbalanced parentheses, since no close found but level > 0");
+			record(ERROR, "unbalanced parentheses, since no close found but level > 0");
 		} else {
 			if(finish_paren(p, CLOSE_PAREN)) {
 				assert(level > 0);
@@ -276,7 +277,7 @@ bool pass_statement(struct parser* p, string tag) {
 	if(pass_char(p, '(')) {
 		size_t start_type = p->cur;
 		if(!find_and_pass_char(p,')')) {
-			WARN("EOF after opening ctemplate (type) paren without closing");
+			record(WARNING, "EOF after opening ctemplate (type) paren without closing");
 			p->end_string += tag.len;
 			p->cur = p->end_string+1;
 			return true;
@@ -286,7 +287,7 @@ bool pass_statement(struct parser* p, string tag) {
 			.len = p->cur - 1 - start_type
 		};
 		if(typestr.len == 0) {
-			WARN("empty type string?");
+			record(WARNING, "empty type string?");
 			p->end_string += tag.len;
 			p->cur = p->end_string+1;
 			return true;
@@ -310,7 +311,7 @@ bool pass_statement(struct parser* p, string tag) {
 		process_code(p, code);
 	} else {
 		// XXX: this probably shouldn't even be a warning
-		WARN("ctemplate token found without open paren");
+		record(WARNING, "ctemplate token found without open paren");
 		p->end_string = p->cur;
 		p->cur = p->end_string+1;
 		return true;

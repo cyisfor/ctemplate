@@ -14,7 +14,7 @@ bool FUNCTION_NAME(struct parser* p, enum paren_types type, enum paren_direction
 		case ONE(ANGLE_BRACKET, '<');
 		case ONE(DOUBLEQUOTE, '"');
 		default:
-			ERROR("huh? %d", type);
+			record(ERROR, "huh? %d", type);
 		};
 	} else {
 		switch(type) {
@@ -27,10 +27,10 @@ bool FUNCTION_NAME(struct parser* p, enum paren_types type, enum paren_direction
 		case ONE(ANGLE_BRACKET, '>');
 		case ONE(DOUBLEQUOTE, '"');
 		default:
-			ERROR("huh?? %d", type);
+			record(ERROR, "huh?? %d", type);
 		};			
 	}
-	ERROR("Should never get here");
+	record(ERROR, "Should never get here");
 }
 
 #undef FUNCTION_NAME

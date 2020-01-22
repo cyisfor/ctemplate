@@ -1,6 +1,3 @@
-[submodule "note"]
-	path = note
-	url = /home/repo/note
 [submodule "str_to_enum_trie"]
 	path = str_to_enum_trie
 	url = /home/repo/str_to_enum_trie

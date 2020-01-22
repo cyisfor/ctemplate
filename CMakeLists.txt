@@ -7,11 +7,8 @@ add_executable(ctemplate
 
 target_include_directories(ctemplate PUBLIC cstuff)
 
-add_library(note note/note.c)
-target_include_directories(note PUBLIC note)
-
 add_subdirectory(cstuff)
-add_cstuff(mmapfile)
+add_cstuff(mmapfile record)
 
 add_subdirectory(str_to_enum_trie)
 str_to_enum_trie(processing_type src/processing_types.list)
