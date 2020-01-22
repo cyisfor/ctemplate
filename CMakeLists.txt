@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
+project(ctemplate VERSION 0.1)
 
 add_executable(ctemplate
 	src/die.c
@@ -19,7 +20,7 @@ add_executable(derp_ctemplate
   src/c_generate.c
   src/c_generate_main.c)
 target_include_directories(derp_ctemplate PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-target_link_libraries(derp_ctemplate PRIVATE note cstuff)
+target_link_libraries(derp_ctemplate PRIVATE cstuff)
 
 function (add_ctemplate name)
 	set(OPTIONS)
