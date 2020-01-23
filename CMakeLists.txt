@@ -6,8 +6,6 @@ add_executable(ctemplate
 	src/generate.c
 	src/generate_main.c)
 
-target_include_directories(ctemplate PUBLIC cstuff)
-
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/add_module")
 include(AddModule)
 
@@ -18,12 +16,13 @@ add_module(cstuff
   https://github.com/cyisfor/cstuff.git)
 add_cstuff(mmapfile record)
 
+target_link_libraries(ctemplate PRIVATE cstuff)
+
 add_module(str_to_enum_trie
-  GIT 874ae5456e63ea82ddba9cca149600a71be06daf
-  file:///home/repo/cstuff
-  git@github.com:cyisfor/cstuff.git
-  https://github.com/cyisfor/cstuff.git)
-add_subdirectory(str_to_enum_trie)
+  GIT 4f5eed5b5e5241afeda669738749cab49e7e07ca
+  file:///home/repo/str_to_enum_trie
+  git@github.com:cyisfor/str_to_enum_trie.git
+  https://github.com/cyisfor/str_to_enum_trie.git)
 str_to_enum_trie(processing_type src/processing_types.list)
 
 add_executable(derp_ctemplate
@@ -88,23 +87,19 @@ function (add_ctemplate name)
 #	include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 endfunction(add_ctemplate)
 
-#find_package(CTemplate MODULE REQUIRED)
-#include("${CMAKE_CURRENT_SOURCE_DIR}/FindCTemplate.cmake")
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	add_ctemplate(test.template.html)
 	add_executable(example src/example.c test.template.html)
-	target_include_directories(example PUBLIC
-		cstuff
-		"${CMAKE_CURRENT_BINARY_DIR}")
-
+	target_include_directories(example PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
+	target_link_libraries(example PRIVATE cstuff)
+	  
 	add_ctemplate(example2tmpl src/example2.c example2.c.c
 		OPEN ".|"
 		CLOSE "|.")
 	add_executable(example2 example2.c.c)
 	add_dependencies(example2 example2tmpl)
-	target_include_directories(example2 PRIVATE
-		cstuff
-		src)
+	target_include_directories(example2 PRIVATE src)
+	target_link_libraries(example2 PRIVATE cstuff)	  
 	add_custom_command(
 		OUTPUT example2.c.c.c
 		COMMAND
