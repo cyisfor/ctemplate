@@ -19,7 +19,7 @@ add_cstuff(mmapfile record)
 target_link_libraries(ctemplate PRIVATE cstuff)
 
 add_module(str_to_enum_trie
-  GIT 4f5eed5b5e5241afeda669738749cab49e7e07ca
+  GIT 445f60aca94dc7d8006df4780f7a97114d9bf750
   file:///home/repo/str_to_enum_trie
   git@github.com:cyisfor/str_to_enum_trie.git
   https://github.com/cyisfor/str_to_enum_trie.git)
