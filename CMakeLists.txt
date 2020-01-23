@@ -8,9 +8,21 @@ add_executable(ctemplate
 
 target_include_directories(ctemplate PUBLIC cstuff)
 
-add_subdirectory(cstuff)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/add_module")
+include(AddModule)
+
+add_module(cstuff
+  GIT 874ae5456e63ea82ddba9cca149600a71be06daf
+  file:///home/repo/cstuff
+  git@github.com:cyisfor/cstuff.git
+  https://github.com/cyisfor/cstuff.git)
 add_cstuff(mmapfile record)
 
+add_module(str_to_enum_trie
+  GIT 874ae5456e63ea82ddba9cca149600a71be06daf
+  file:///home/repo/cstuff
+  git@github.com:cyisfor/cstuff.git
+  https://github.com/cyisfor/cstuff.git)
 add_subdirectory(str_to_enum_trie)
 str_to_enum_trie(processing_type src/processing_types.list)
 
