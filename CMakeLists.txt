@@ -11,7 +11,7 @@ include(AddModule)
 
 add_module(cstuff
   GIT 874ae5456e63ea82ddba9cca149600a71be06daf
-  file:///home/repo/cstuff
+  file://$ENV{HOME}/repo/cstuff
   git@github.com:cyisfor/cstuff.git
   https://github.com/cyisfor/cstuff.git)
 add_cstuff(mmapfile record)
@@ -19,8 +19,8 @@ add_cstuff(mmapfile record)
 target_link_libraries(ctemplate PRIVATE cstuff)
 
 add_module(str_to_enum_trie
-  GIT d3c909ed165b6a8e7e44f447213fd7c8b3bcead9
-  file:///home/repo/str_to_enum_trie
+  GIT fba30b351d7cf41d0c1b945ac9c1c860d9b0b7a2
+  file://$ENV{HOME}/repo/str_to_enum_trie
   git@github.com:cyisfor/str_to_enum_trie.git
   https://github.com/cyisfor/str_to_enum_trie.git)
 str_to_enum_trie(processing_type src/processing_types.list)
