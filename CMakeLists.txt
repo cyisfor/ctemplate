@@ -21,7 +21,7 @@ target_link_libraries(ctemplate PRIVATE cstuff)
 
 add_module(str_to_enum_trie
   GIT fba30b351d7cf41d0c1b945ac9c1c860d9b0b7a2
-  file://$ENV{HOME}/code/str_to_enum_trie  
+  file://$ENV{HOME}/code/str_to_enum_trie
   file://$ENV{HOME}/repo/str_to_enum_trie
   git@github.com:cyisfor/str_to_enum_trie.git
   https://github.com/cyisfor/str_to_enum_trie.git)
@@ -94,14 +94,14 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 	add_executable(example src/example.c test.template.html)
 	target_include_directories(example PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
 	target_link_libraries(example PRIVATE cstuff)
-	  
+
 	add_ctemplate(example2tmpl src/example2.c example2.c.c
 		OPEN ".|"
 		CLOSE "|.")
 	add_executable(example2 example2.c.c)
 	add_dependencies(example2 example2tmpl)
 	target_include_directories(example2 PRIVATE src)
-	target_link_libraries(example2 PRIVATE cstuff)	  
+	target_link_libraries(example2 PRIVATE cstuff)
 	add_custom_command(
 		OUTPUT example2.c.c.c
 		COMMAND
@@ -112,4 +112,3 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 		example2.c.c.c)
 #	add_dependencies(example test.template.html)
 endif()
-
