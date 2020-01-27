@@ -10,7 +10,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/add_module")
 include(AddModule)
 
 add_module(cstuff
-  GIT 874ae5456e63ea82ddba9cca149600a71be06daf\
+  GIT 874ae5456e63ea82ddba9cca149600a71be06daf
   file://$ENV{HOME}/code/cstuff
   file://$ENV{HOME}/repo/cstuff
   git@github.com:cyisfor/cstuff.git
