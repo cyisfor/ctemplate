@@ -10,7 +10,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/add_module")
 include(AddModule)
 
 add_module(cstuff
-  GIT 874ae5456e63ea82ddba9cca149600a71be06daf
+  GIT 874ae5456e63ea82ddba9cca149600a71be06daf\
+  file://$ENV{HOME}/code/cstuff
   file://$ENV{HOME}/repo/cstuff
   git@github.com:cyisfor/cstuff.git
   https://github.com/cyisfor/cstuff.git)
@@ -20,6 +21,7 @@ target_link_libraries(ctemplate PRIVATE cstuff)
 
 add_module(str_to_enum_trie
   GIT fba30b351d7cf41d0c1b945ac9c1c860d9b0b7a2
+  file://$ENV{HOME}/code/str_to_enum_trie  
   file://$ENV{HOME}/repo/str_to_enum_trie
   git@github.com:cyisfor/str_to_enum_trie.git
   https://github.com/cyisfor/str_to_enum_trie.git)
