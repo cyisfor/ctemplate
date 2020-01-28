@@ -10,7 +10,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/add_module")
 include(AddModule)
 
 add_module(cstuff
-  GIT 874ae5456e63ea82ddba9cca149600a71be06daf
+  GIT a56e4d70b4b209331e9155662bff122798b71a7c
   file://$ENV{HOME}/code/cstuff
   file://$ENV{HOME}/repo/cstuff
   git@github.com:cyisfor/cstuff.git
@@ -20,12 +20,13 @@ add_cstuff(mmapfile record)
 target_link_libraries(ctemplate PRIVATE cstuff)
 
 add_module(str_to_enum_trie
-  GIT 47df9a09a1029c1ddcdf4b4e00672f4386f24c48
+  GIT 70173b21c287ed9ae4c7d78bbb2c27290195ffa8
   file://$ENV{HOME}/code/str_to_enum_trie
   file://$ENV{HOME}/repo/str_to_enum_trie
   git@github.com:cyisfor/str_to_enum_trie.git
   https://github.com/cyisfor/str_to_enum_trie.git)
-str_to_enum_trie(processing_type src/processing_types.list)
+str_to_enum_trie(processing_type src/processing_types.list
+  ENUM processing_type)
 
 add_executable(derp_ctemplate
   processing_type.c
